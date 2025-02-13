@@ -3,6 +3,7 @@
 *.wfn
 *.wfn.bak-1
 *~
+.*.swp
 *.xml
 *.html
 pycp2k/parsedclasses.pyc
