@@ -1,0 +1,5 @@
+       &SCF
+           EPS_SCF 1.0E-6
+           &OT
+           &END
+       &END
