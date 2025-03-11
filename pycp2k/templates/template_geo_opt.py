@@ -17,7 +17,7 @@ class TemplateGeoOpt(CP2K):
         if template_filein is None:
             template_filein="template_geopt.in"
             with open(template_filein,"w") as f:
-                f.write(template)
+                f.write(self.template)
         self.parse(template_filein)
         os.remove("template_geopt.in")
 
