@@ -11,16 +11,21 @@ def parse():
     parser.add_argument("--output", type=str, required=True, help='Path to resulting cp2k input file')
     return parser.parse_args()
 
-def add_system(calc, cell):
-    # set cell vectors
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.A=" ".join(map(str, cell.cell[0]))
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.B=" ".join(map(str, cell.cell[1]))
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.C=" ".join(map(str, cell.cell[2]))
+def gen_cubic_cell():
+    raise(NotImplementedError,"gen_cubic_cell not yet implemented")
+
+def add_atoms(calc, atoms):
+    if atoms.cell:
+       # set cell vectors if they exist
+       calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.A=" ".join(map(str, atoms.cell[0]))
+       calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.B=" ".join(map(str, atoms.cell[1]))
+       calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.C=" ".join(map(str, atoms.cell[2]))
+
     # TODO: set periodicity and cell angles
     # set coordinates
     default_keyword=[]
-    for i in range(len(cell)):
-        default_keyword.append(cell[i].symbol+" "+" ".join(map(str, cell.positions[i])))
+    for i in range(len(atoms)):
+        default_keyword.append(atoms[i].symbol+" "+" ".join(map(str, atoms.positions[i])))
     calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.COORD.Default_keyword=default_keyword
 
 def add_kinds(calc, cell):
