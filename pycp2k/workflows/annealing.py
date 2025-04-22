@@ -4,7 +4,7 @@ from ase.io import read, write
 import pandas as pd
 import os
 import subprocess
-import globß
+import glob
 
 if __name__=="__main__":
     calc=CP2K()
