@@ -57,7 +57,7 @@ if __name__=="__main__":
     cell = read(args.cell)
     calc=CP2K()
     calc.parse(args.cp2k_input_template)
-    add_system(calc, cell)
+    add_atoms(calc, cell)
     add_kinds(calc,cell)
     calc.write_input_file(args.output)
     
