@@ -16,3 +16,8 @@ def add_xTB(calc:CP2K,**kwargs):
     print(f"do_ewald = {DFT.QS.XTB.Do_ewald}")
     print(f"use_halogen_correction = {DFT.QS.XTB.Use_halogen_correction}")
     return
+
+def del_xTB(calc:CP2K):
+    del(calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.QS)
+    del(calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT._subsections['QS'])
+    return
