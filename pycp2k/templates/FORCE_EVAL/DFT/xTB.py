@@ -2,7 +2,7 @@ from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 
 def add_xTB(calc:CP2K,**kwargs):
     feval_idx=kwargs.get("feval_idx",0)
-    if not calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx]:
+    if  len(calc.CP2K_INPUT.FORCE_EVAL_list) <= feval_idx:
         raise ValueError(f"FORCE_EVAL section {feval_idx} not found in calculator")
 
     print(f"===Adding xTB to FORCE_EVAL section {feval_idx}===")
