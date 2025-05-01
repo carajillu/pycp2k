@@ -1,0 +1,22 @@
+from pycp2k.templates.GLOBAL.GLOBAL import CP2K
+
+def add_PBE(calc:CP2K,**kwargs):
+    feval_idx=kwargs.get("feval_idx",0)
+    if  len(calc.CP2K_INPUT.FORCE_EVAL_list) <= feval_idx:
+        raise ValueError(f"FORCE_EVAL section {feval_idx} not found in calculator")
+
+    print(f"===Adding PBE to FORCE_EVAL section {feval_idx}===")
+    calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].Method="QS"
+    DFT=calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].DFT
+    # Get potential file
+    DFT.Potential_file_name=kwargs.get("potential_file_name","POTENTIAL")
+    # Get basis set file
+    basis_set_files=kwargs.get("basis_set_files",["BASIS_MOLOPT"])
+    if not isinstance(basis_set_files,list):
+        basis_set_files=[basis_set_files]
+    DFT.Basis_set_file_name=basis_set_files
+    calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Section_parameters="" # just to create section?
+    return
+
+def del_PBE(calc:CP2K):
+    raise NotImplementedError("Not implemented")
