@@ -1,7 +1,7 @@
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 from pycp2k.templates.FORCE_EVAL.DFT.xTB import add_xTB
-from pycp2k.templates.FORCE_EVAL.SCF.OT import add_OT
-from pycp2k.templates.FORCE_EVAL.SCF.loop import add_inner_scf,add_outer_scf
+from pycp2k.templates.FORCE_EVAL.DFT.SCF.OT import add_OT
+from pycp2k.templates.FORCE_EVAL.DFT.SCF.loop import add_inner_scf,add_outer_scf
 from pycp2k.templates.FORCE_EVAL.SUBSYS.add_atoms import add_coords,add_cell
 from ase import Atoms
 
