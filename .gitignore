@@ -24,3 +24,4 @@ examples/*.bak-2
 examples/*.bak-3
 pycp2k/classes/*
 pycp2k/config.py
+test.py
