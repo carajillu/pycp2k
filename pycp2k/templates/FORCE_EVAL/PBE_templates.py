@@ -24,6 +24,8 @@ def add_PBE_mixing_smear(atoms:Atoms,calc:CP2K,**kwargs):
     add_PBE(calc=calc,**kwargs)
     add_mixing(calc=calc,**kwargs)
     add_smear(calc=calc,**kwargs)
+    add_inner_scf(calc=calc,**kwargs)
+    add_outer_scf(calc=calc,**kwargs)
     add_coords(atoms=atoms,calc=calc)
     add_cell(atoms=atoms,calc=calc)
     add_kinds(atoms=atoms,calc=calc,**kwargs)
