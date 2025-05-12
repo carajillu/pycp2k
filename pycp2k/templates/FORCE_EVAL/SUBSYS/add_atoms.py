@@ -23,4 +23,5 @@ def add_cell(atoms:Atoms,calc:CP2K):
     calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.B=" ".join(map(str, atoms.cell[1]))
     calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.C=" ".join(map(str, atoms.cell[2]))
     calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.CELL.Periodic="XYZ"
+    print(f"Cell: {atoms.cell}")
     return
