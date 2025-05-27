@@ -11,6 +11,8 @@ def add_print_forces(calc:CP2K,**kwargs):
 
     PRINT_FORCES.Filename=kwargs.get("filename","forces.out")
     PRINT_FORCES.EACH.Just_energy=kwargs.get("each_just_energy",1)
+    print(f"forces will be printed to {PRINT_FORCES.Filename}")
+    print(f"forces will be printed every {PRINT_FORCES.EACH.Just_energy} steps")
     return
 
 def postprocess_forces(calc:CP2K,atoms:Atoms,**kwargs):
