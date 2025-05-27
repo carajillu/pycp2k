@@ -1,11 +1,16 @@
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 
 def add_inner_scf(calc:CP2K,**kwargs):
+    allowed_kwargs=["scf_guess","max_scf","eps_scf","ignore_convergence_failure"]
+    for kw in kwargs.keys():
+        if kw not in allowed_kwargs:
+            raise ValueError(f"Invalid keyword argument in add_inner_scf: {kw}. Valid arguments are: {allowed_kwargs}")
     #inner scf loop
     SCF=calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.SCF
     SCF.Scf_guess=kwargs.get("scf_guess","RESTART")
     SCF.Max_scf=kwargs.get("max_scf",20)
     SCF.Eps_scf=kwargs.get("eps_scf",1e-6)
+    SCF.Ignore_convergence_failure=kwargs.get("ignore_convergence_failure",False)
     print(f"scf_guess = {SCF.Scf_guess}")
     print(f"max_scf = {SCF.Max_scf}")
     print(f"eps_scf = {SCF.Eps_scf}")
