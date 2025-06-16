@@ -2,33 +2,43 @@ from ase import Atoms
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 import numpy as np
 
-def add_print_singlepoint(calc:CP2K,**kwargs):
-    kwargs_keys=["filename","each_just_energy", "forces", "stress"]
-    for key in kwargs.keys():
-        if key not in kwargs_keys:
-            raise ValueError(f"{key} is not a valid keyword argument for add_print_forces, valid arguments are {kwargs_keys}")
-        
-    stress=kwargs.get("stress", False)
-    if stress:
-        calc.CP2K_INPUT.FORCE_EVAL_list[0].Stress_tensor=kwargs.get("stress", "ANALYTICAL")
-        calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.EACH.Just_energy=kwargs.get("each_just_energy",1)
-        calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.Filename="./"
-        
-    PRINT_FORCES=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.FORCES
-    PRINT_FORCES.Filename=kwargs.get("filename","forces")
-    PRINT_FORCES.EACH.Just_energy=kwargs.get("each_just_energy",1)
-    print(f"forces will be printed to {PRINT_FORCES.Filename}")
-    print(f"forces will be printed every {PRINT_FORCES.EACH.Just_energy} steps")
-    return
+##################################################################################
+#                                     ENERGY                                     #
+##################################################################################
 
-def postprocess(calc:CP2K,atoms:Atoms,**kwargs):
-    # Postprocess energy
-
-    # Postprocess forces
-    forces_filename=kwargs.get("filename","forces.out")
-    forces_path=f"{calc.project_name}-{forces_filename}-1_0.xyz"
+def postprocess_energy(calc: CP2K):
     """
-    Need to read the forces output and add it as an array property to the atoms object
+    Parse the CP2K stdout for the converged value of the energy, return as a float
+    """
+    cp2k_output_path=f"{calc.CP2K_INPUT.GLOBAL.Project_name}.out"
+    switch=False
+    with open(cp2k_output_path,"r") as f:
+        for line in f:
+            if "SCF run converged" in line:
+                switch=True
+            if switch==True and "Total energy:" in line:
+                line=line.split()
+                return float(line[2])
+
+##################################################################################
+#                                     FORCES                                     #
+##################################################################################
+
+
+def add_print_singlepoint_forces(calc:CP2K,filename:str="forces"):
+    '''
+    Add a print section to FORCE_EVAL that prints the forces to a file
+    '''
+    PRINT_FORCES=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.FORCES
+    PRINT_FORCES.Filename=filename
+    PRINT_FORCES.EACH.Just_energy=1
+    full_filename=f"{calc.project_name}-{PRINT_FORCES.Filename}-1_0.xyz"
+    print(f"converged forces will be printed to {full_filename}")
+    return full_filename
+
+def postprocess_forces(forces_path: str):
+    """
+    Parse the forces output file, return as a np.array
     """
     parse=False
     forces=[]
@@ -41,16 +51,43 @@ def postprocess(calc:CP2K,atoms:Atoms,**kwargs):
                 forces.append([float(i) for i in line[2:5]])
             if line==['FORCES|', 'Atom', 'x', 'y', 'z', '|f|']:
                 parse=True
-    atoms.set_array("forces",np.array(forces))
+    return np.array(forces)
 
-    # Postprocess stress
-    stress_filename=kwargs.get("filename","./")
-    stress_path=f"{stress_filename}{calc.project_name}-1_0.stress_tensor"
+##################################################################################
+#                                     STRESS                                     #
+##################################################################################
+
+def add_print_stress_tensor(calc:CP2K,filename:str="stress"):
+    """
+    Add a PRINT section to FORCE_EVAL that prints the stress tensor to a file
+    """
+    calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.EACH.Just_energy=1
+    calc.CP2K_INPUT.FORCE_EVAL_list[0].Stress_tensor="ANALYTICAL"
+    calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.Filename="./"
+    full_filename=f"{calc.project_name}-1_0.stress_tensor"
+    return full_filename
+
+def postprocess_stress(stress_path: str, notation: str="voigt"):
+    """
+    Parse the stress output file and return the stress tensor as a np.array
+    """
+    notation_types=["full","voigt"]
+    if notation not in notation_types:
+        raise(f"Stress notation can only be one of the following options: {notation_types}")
+    parse=False
+    stress_tensor=[]
     with open(stress_path,"r") as f:
         for line in f:
             line=line.split()
-            if line[0:2]==['STRESS|', 'Sum']:
+            if line==["STRESS|","x","y","z"]:
+                parse=True
+            elif line[0:3]==["STRESS|","1/3","Trace"]:
                 parse=False
-            if parse:
-                stress.append([float(i) for i in line[2:5]])
-    return
+            elif parse==True:
+                stress_tensor.append([float(i) for i in line[2:5]])
+    stress_tensor=np.array(stress_tensor)
+    
+    if notation=="full":
+       return stress_tensor
+    if notation=="voigt":
+       return np.array([stress_tensor[0,0],stress_tensor[1,1],stress_tensor[2,2],stress_tensor[1,2],stress_tensor[0,2],stress_tensor[0,1]])
