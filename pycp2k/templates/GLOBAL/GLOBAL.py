@@ -16,3 +16,18 @@ class CP2K(CP2K):
         print(f"CP2K_INPUT.GLOBAL.Project_name: {self.CP2K_INPUT.GLOBAL.Project_name}")
         print(f"CP2K_INPUT.GLOBAL.Print_level: {self.CP2K_INPUT.GLOBAL.Print_level}")
         print(f"CP2K_INPUT.GLOBAL.Run_type: {self.CP2K_INPUT.GLOBAL.Run_type}")
+    
+    def cleanup(self,quiet:bool=False):
+        
+        if not quiet:
+           z=""
+           while (z.upper()) not in ["Y","N"]:
+               z=input(f"WARNING: You are about to run 'rm -rf {self.project_name}*'. \
+                       Check that you are not removing files you want to keep. Do you wish to continue?[Y/N]\n")
+           if z.upper()=="N":
+               print("Aborting cleanup")
+               return
+        cmd=f"rm -rf {self.project_name}*"
+        os.system(cmd)
+        return
+               
