@@ -25,11 +25,12 @@ def postprocess_energy(calc: CP2K):
 ##################################################################################
 
 
-def add_print_singlepoint_forces(calc:CP2K,filename:str="forces"):
+def add_print_singlepoint_forces(calc:CP2K,filename:str="forces", unit:str="HARTREE/BOHR"):
     '''
     Add a print section to FORCE_EVAL that prints the forces to a file
     '''
     PRINT_FORCES=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.FORCES
+    #PRINT_FORCES.Force_unit=unit #not working in 9.0
     PRINT_FORCES.Filename=filename
     PRINT_FORCES.EACH.Just_energy=1
     full_filename=f"{calc.project_name}-{PRINT_FORCES.Filename}-1_0.xyz"
@@ -57,13 +58,16 @@ def postprocess_forces(forces_path: str):
 #                                     STRESS                                     #
 ##################################################################################
 
-def add_print_stress_tensor(calc:CP2K,filename:str="stress"):
+def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str="HARTREE/BOHR^3"):
     """
     Add a PRINT section to FORCE_EVAL that prints the stress tensor to a file
     """
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.EACH.Just_energy=1
     calc.CP2K_INPUT.FORCE_EVAL_list[0].Stress_tensor="ANALYTICAL"
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.Filename="./"
+    PRINT_STRESS_TENSOR=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR
+    PRINT_STRESS_TENSOR.EACH.Just_energy=1
+    PRINT_STRESS_TENSOR.Filename="./"
+    #PRINT_STRESS_TENSOR.Stress_unit=unit #Not working in 9.0
+    
     full_filename=f"{calc.project_name}-1_0.stress_tensor"
     return full_filename
 
