@@ -8,7 +8,7 @@ def add_PBE(calc:CP2K,feval_idx:int=0,charge:int=0,LSD:bool=False,**kwargs):
     calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].Method="QS" # This is not optional
     DFT=calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].DFT
     DFT.Charge=charge
-    DFT.LSD=LSD
+    DFT.Lsd=LSD
     # Get potential file
     DFT.Potential_file_name=kwargs.get("potential_file_name","POTENTIAL")
     print(f"Potential file: {DFT.Potential_file_name}")
