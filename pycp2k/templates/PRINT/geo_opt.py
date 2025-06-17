@@ -5,17 +5,22 @@ def add_print_geo_opt(calc: CP2K, **kwargs):
     """
     Set up a print section in the cp2k input file to print coordinates, energy and forces after every N geometry optimization steps
     """
-    allowed_kwargs=["each"]
+    allowed_kwargs=["each", "stress"]
     for kw in kwargs:
         if kw not in allowed_kwargs:
             raise ValueError(f"Invalid keyword: {kw}")
+        
+    stress=kwargs.get("stress", False)
+    if stress:
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].Stress_tensor=kwargs.get("stress", "ANALYTICAL")
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.EACH.Just_energy=kwargs.get("each", 1)
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR.Filename="./"
 
     calc.CP2K_INPUT.MOTION.PRINT_add()
     PRINT=calc.CP2K_INPUT.MOTION.PRINT_list[0]
-    each=kwargs.get("each", 0)
-    if each>0:
-        PRINT.TRAJECTORY.EACH.Geo_opt=each
-        PRINT.FORCES.EACH.Geo_opt=each
+    each=kwargs.get("each", 1)
+    PRINT.TRAJECTORY.EACH.Geo_opt=each
+    PRINT.FORCES.EACH.Geo_opt=each
 
 def postprocess_geo_opt(calc: CP2K, **kwargs):
 
