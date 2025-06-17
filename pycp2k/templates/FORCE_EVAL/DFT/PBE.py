@@ -1,13 +1,14 @@
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 
-def add_PBE(calc:CP2K,**kwargs):
-    feval_idx=kwargs.get("feval_idx",0)
+def add_PBE(calc:CP2K,feval_idx:int=0,charge:int=0,LSD:bool=False,**kwargs):
     if  len(calc.CP2K_INPUT.FORCE_EVAL_list) <= feval_idx:
         raise ValueError(f"FORCE_EVAL section {feval_idx} not found in calculator")
 
     print(f"===Adding PBE to FORCE_EVAL section {feval_idx}===")
     calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].Method="QS" # This is not optional
     DFT=calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].DFT
+    DFT.Charge=charge
+    DFT.LSD=LSD
     # Get potential file
     DFT.Potential_file_name=kwargs.get("potential_file_name","POTENTIAL")
     print(f"Potential file: {DFT.Potential_file_name}")
