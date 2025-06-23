@@ -1,3 +1,4 @@
+import pycp2k
 from pycp2k import CP2K
 import os
 class CP2K(CP2K):
@@ -11,6 +12,10 @@ class CP2K(CP2K):
         self.CP2K_INPUT.GLOBAL.Project_name=project_name
         self.CP2K_INPUT.GLOBAL.Print_level=print_level
         self.CP2K_INPUT.GLOBAL.Run_type=run_type
+        self.version=float(pycp2k.config.build_version)
+        self.revision=pycp2k.config.build_revision
+        print(f"CP2K version: {self.version}")
+        print(f"CP2K revision: {self.revision}")
         print(f"CP2K_command: {self.cp2k_command}")
         print(f"Working directory: {self.working_directory}")
         print(f"CP2K_INPUT.GLOBAL.Project_name: {self.CP2K_INPUT.GLOBAL.Project_name}")
