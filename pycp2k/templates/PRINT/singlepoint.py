@@ -12,13 +12,15 @@ def postprocess_energy(calc: CP2K):
     """
     cp2k_output_path=f"{calc.CP2K_INPUT.GLOBAL.Project_name}.out"
     switch=False
+    total_energy=None
     with open(cp2k_output_path,"r") as f:
         for line in f:
-            if "SCF run converged" in line:
-                switch=True
-            if switch==True and "Total energy:" in line:
+            if "Total energy:" in line:
                 line=line.split()
-                return float(line[2])
+                total_energy=float(line[2])
+    if total_energy is None:
+        raise ValueError(f"Total energy not found in {cp2k_output_path}")
+    return total_energy
 
 ##################################################################################
 #                                     FORCES                                     #
