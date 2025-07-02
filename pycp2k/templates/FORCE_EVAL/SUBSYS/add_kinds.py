@@ -1,3 +1,6 @@
+from ase import Atoms
+from pycp2k.templates.GLOBAL.GLOBAL import CP2K
+
 valence_electrons_ecp = {
     # s-block (Alkali & Alkaline Earth)
     "H": 1, "He": 2,
@@ -19,3 +22,19 @@ valence_electrons_ecp = {
     "La": 3, "Ce": 4, "Pr": 5, "Nd": 6, "Pm": 7, "Sm": 8, "Eu": 9, "Gd": 10, "Tb": 11, "Dy": 12, "Ho": 13, "Er": 14, "Tm": 15, "Yb": 16, "Lu": 3,
     "Ac": 3, "Th": 4, "Pa": 5, "U": 14, "Np": 15, "Pu": 16, "Am": 17, "Cm": 18, "Bk": 19, "Cf": 20, "Es": 21, "Fm": 22, "Md": 23, "No": 24, "Lr": 3
 }
+
+def add_kinds(atoms:Atoms,calc:CP2K,**kwargs):
+    """
+    Add kinds to the atoms object.
+    """
+    potential=kwargs.get("potential","GTH-PBE")
+    basis_set=kwargs.get("basis_set",["DZVP-MOLOPT-SR-GTH"])
+    if not isinstance(basis_set,list):
+        basis_set=[basis_set]
+    for symbol in set(atoms.get_chemical_symbols()):
+        if symbol not in valence_electrons_ecp:
+            raise ValueError(f"Atom {symbol} not supported.")
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_add(symbol)
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_list[-1].Potential=f"{potential}-q{valence_electrons_ecp[symbol]}"
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_list[-1].Basis_set=basis_set
+        print(f"Added kind {symbol} with potential {potential}-q{valence_electrons_ecp[symbol]} and basis set {basis_set}")

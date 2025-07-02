@@ -53,6 +53,7 @@ class CP2KInputParser():
             name = "NUM" + name
         name = name.replace("-", "_")
         name = name.replace("+", "PLUS")
+        name = name.replace(".", "DOT")
         return name
 
     def _set_keyword(self, section, keyword, value, path, full):

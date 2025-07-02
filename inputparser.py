@@ -33,6 +33,10 @@ def validify_section(string):
     if '[' in string:
         changed = True
         string = string.replace("[", "_").replace("]", "")
+    
+    if "." in string:
+        changed = True
+        string = string.replace(".", "DOT")
 
     if changed:
         print("    Section {} replaced with {}".format(original, string))
@@ -66,6 +70,10 @@ def validify_keyword(string):
     if '[' in string:
         changed = True
         string = string.replace("[", "_").replace("]", "")
+
+    if "." in string:
+        changed = True
+        string = string.replace(".", "DOT")
 
     if changed:
         print("    Keyword {} replaced with {}".format(original, string))
@@ -255,6 +263,7 @@ def recursive_class_creation(section, level, class_dictionary, version_dictionar
         member_name = subsection.find("NAME").text
         member_name = member_name.replace("-", "_")
         member_name = member_name.replace("+", "PLUS")
+        member_name = member_name.replace(".", "DOT")
         if member_name[0].isdigit():
             member_name = "_" + member_name
         imports.append("from .{0} import {0}".format(member_class_name))
@@ -341,8 +350,15 @@ def main(xml_path):
     root = tree.getroot()
 
     # Extract the cp2k version and revision
-    version = root.find("CP2K_VERSION").text
-    revision = root.find("COMPILE_REVISION").text
+    cp2k_year=root.find("CP2K_YEAR").text
+    if int(cp2k_year) <= 2021:
+       version = root.find("CP2K_VERSION").text
+       revision = root.find("COMPILE_REVISION").text
+    else:
+        version = root.find("CP2K_VERSION").text
+        revision = version.split()[-1].split(".")[-1]
+        #version = cp2k_year
+        #revision = root.find("CP2K_VERSION").text.split()[-1].split(".")[-1]
 
     class_dictionary = {}
     version_dictionary = {}
