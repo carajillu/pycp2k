@@ -1,7 +1,7 @@
 import pycp2k
 from pycp2k import CP2K
 import os
-class CP2K(CP2K):
+class pyCP2K(CP2K):
 
     def __init__(self,project_name:str="TEMPLATE",print_level:str="MEDIUM",run_type:str="ENERGY",\
                  working_directory:str=os.getcwd(),cp2k_command:str="cp2k.psmp"):

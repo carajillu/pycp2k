@@ -105,7 +105,11 @@ class CP2K(object):
         if self._output_path is not None:
             return self._output_path
         else:
-            return self.working_directory + "/" + self.project_name + ".out"
+            wsl = True
+            if wsl: 
+                return self.project_name + ".out"
+            else:
+                return self.working_directory + "/" + self.project_name + ".out"
 
     @output_path.setter
     def output_path(self, x):
@@ -116,7 +120,11 @@ class CP2K(object):
         if self._input_path is not None:
             return self._input_path
         else:
-            return self.working_directory + "/" + self.project_name + ".inp"
+            wsl = True
+            if wsl: 
+                return self.project_name + ".inp"
+            else:
+                return self.working_directory + "/" + self.project_name + ".inp"
 
     @input_path.setter
     def input_path(self, x):
@@ -316,7 +324,7 @@ class CP2K(object):
 
         # Perform syntax check
         print_text(">> Performing syntax check on input file...")
-        command_for_syntax_check = " ".join([self.cp2k_command, "-i " + str(self.input_path), "--check"])
+        command_for_syntax_check = " ".join([self.mpi_command, self.cp2k_command, "-i " + str(self.input_path), "--check"])
         syntax_result = (check_output(command_for_syntax_check, shell=True, cwd=working_directory)).decode("utf-8")
         success_regex = re.compile("^SUCCESS", re.MULTILINE)
         match = success_regex.search(syntax_result)
