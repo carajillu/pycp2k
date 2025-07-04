@@ -4,7 +4,7 @@ from pycp2k.templates.GLOBAL.GLOBAL import pyCP2K
 from pycp2k.templates.FORCE_EVAL.xTB_templates import add_xTB_OT
 from pycp2k.templates.MOTION.GEO_OPT.minimization import add_minimization
 
-def geo_opt_xtb_ot(project_name,atoms):
+def geo_opt_xtb_ot(project_name,file_name):
     """
     Perform geometry optimization using xTB with the OT method.
     """
