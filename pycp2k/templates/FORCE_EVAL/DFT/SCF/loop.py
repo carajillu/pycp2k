@@ -7,7 +7,7 @@ def add_inner_scf(calc:CP2K,**kwargs):
     SCF.Scf_guess=kwargs.get("scf_guess","RESTART")
     SCF.Max_scf=kwargs.get("max_scf",20)
     SCF.Eps_scf=kwargs.get("eps_scf",1e-6)
-    if calc.version >= 2025.1:
+    if calc.version > 9.1:
         SCF.Ignore_convergence_failure=kwargs.get("Ignore_convergence_failure",False)
         if SCF.Ignore_convergence_failure:
             print("Calculations will proceed as normal even if the SCF does not converge.")
