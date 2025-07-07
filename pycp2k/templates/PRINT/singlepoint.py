@@ -6,6 +6,12 @@ import numpy as np
 #                                     ENERGY                                     #
 ##################################################################################
 
+def add_print_singlepoint_energy(calc:CP2K,filename:str="energy",unit:str=None):
+    """
+    Add a print section to FORCE_EVAL that prints the energy to a file
+    """
+    raise NotImplementedError("print_singlepoint_energy is not in use.")
+
 def postprocess_energy(calc: CP2K):
     """
     Parse the CP2K stdout for the converged value of the energy, return as a float
@@ -27,15 +33,13 @@ def postprocess_energy(calc: CP2K):
 ##################################################################################
 
 
-def add_print_singlepoint_forces(calc:CP2K,filename:str="forces", unit:str="HARTREE/BOHR"):
+def add_print_singlepoint_forces(calc:CP2K,filename:str="forces", unit:str=None):
     '''
     Add a print section to FORCE_EVAL that prints the forces to a file
     '''
     PRINT_FORCES=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.FORCES
-    if calc.version >= 2025.1:
-        PRINT_FORCES.Force_unit=unit
-    else:
-        print("Force_unit is not supported when pycp2k is built with CP2K < 2025.1. Omitting it.")
+    if unit is not  None:
+       PRINT_FORCES.Force_unit=unit
     PRINT_FORCES.Filename=filename
     PRINT_FORCES.EACH.Just_energy=1
     full_filename=f"{calc.project_name}-{PRINT_FORCES.Filename}-1_0.xyz"
@@ -71,11 +75,8 @@ def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str="HARTREE/BO
     PRINT_STRESS_TENSOR=calc.CP2K_INPUT.FORCE_EVAL_list[0].PRINT.STRESS_TENSOR
     PRINT_STRESS_TENSOR.EACH.Just_energy=1
     PRINT_STRESS_TENSOR.Filename="./"
-    if calc.version >= 2025.1:
+    if unit is not None:
         PRINT_STRESS_TENSOR.Stress_unit=unit
-    else:
-        print("Stress_unit is not supported when pycp2k is built with CP2K < 2025.1. Omitting it.")
-    
     full_filename=f"{calc.project_name}-1_0.stress_tensor"
     return full_filename
 
