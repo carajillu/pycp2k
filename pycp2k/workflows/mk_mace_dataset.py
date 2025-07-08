@@ -34,7 +34,7 @@ def add_isolated_atoms(structures: list[Atoms],symbols_set: list[str]) -> set[At
     #Generate isolated atom objects and prepend to dataset
     isolated_atoms=[]
     for symbol in symbols_set:
-        atoms_i=Atoms(symbols=[symbol], positions=[[0, 0, 0]],info={"config_type":"IsolatedAtom"},cell=np.array([1.,1.,1.]))
+        atoms_i=Atoms(symbols=[symbol], positions=[[0, 0, 0]],info={"config_type":"IsolatedAtom"},cell=np.array([5.,5.,5.]))
         atoms_i.info["oddNumberofElectrons"]=atoms_i.get_atomic_numbers()[0]%2==1
         isolated_atoms.append(atoms_i)
     return isolated_atoms+structures
