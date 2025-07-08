@@ -36,5 +36,5 @@ def add_kinds(atoms:Atoms,calc:CP2K,**kwargs):
             raise ValueError(f"Atom {symbol} not supported.")
         calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_add(symbol)
         calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_list[-1].Potential=f"{potential}-q{valence_electrons_ecp[symbol]}"
-        calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_list[-1].Basis_set=f"{basis_set}-q{valence_electrons_ecp[symbol]}"
+        calc.CP2K_INPUT.FORCE_EVAL_list[0].SUBSYS.KIND_list[-1].Basis_set=basis_set
         print(f"Added kind {symbol} with potential {potential}-q{valence_electrons_ecp[symbol]} and basis set {basis_set}")
