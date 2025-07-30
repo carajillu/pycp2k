@@ -96,9 +96,11 @@ if __name__ == "__main__":
     
     #Postprocessing
     for calc in calcs:
+        os.chdir(calc.working_directory)
         calc.atoms.info["E"]=postprocess_energy(calc=calc)
         calc.atoms.set_array("forces",postprocess_forces(forces_path=calc.forces_path))
         calc.atoms.info["stress"]=postprocess_stress(stress_path=calc.stress_path,notation="voigt")
+        os.chdir(root_dir)
     results= [calc.atoms for calc in calcs]
     write(args.output, results, format="extxyz", append=True)
     print(f"Dataset written to {args.output}")
