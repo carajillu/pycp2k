@@ -1,4 +1,4 @@
-import os, sys, subprocess
+import os, sys, subprocess, random
 
 from ase.io import write
 
@@ -78,6 +78,10 @@ if __name__ == "__main__":
     for i, system in enumerate(ds):
         system.info["index"] = f"system_{i}"
         system_dir=os.path.join(root_dir,ds[i].info["index"])
+        if os.path.isdir(system_dir):
+            backup_dir = f"{system_dir}_backup_{random.randint(1000,9999)}"
+            print(f"backing up existing directory {system_dir} to {backup_dir}")
+            os.rename(system_dir, backup_dir)
         os.makedirs(system_dir,exist_ok=True) 
         calc=CP2K(cp2k_command=args.cp2k_command,project_name=system.info["index"],run_type="ENERGY_FORCE",working_directory=system_dir)
         calc.atoms = system
@@ -96,11 +100,14 @@ if __name__ == "__main__":
     
     #Postprocessing
     for calc in calcs:
+        print(f"postprocessing system {calc.atoms.info['index']}")
         os.chdir(calc.working_directory)
         calc.atoms.info["E"]=postprocess_energy(calc=calc)
-        if calc.atoms.info["config_type"]!="IsolatedAtom":
-            calc.atoms.set_array("forces",postprocess_forces(forces_path=calc.forces_path))
-            calc.atoms.info["stress"]=postprocess_stress(stress_path=calc.stress_path,notation="voigt")
+        if calc.atoms.info.get("config_type",None)=="IsolatedAtom":
+            os.chdir(root_dir)  
+            continue
+        calc.atoms.set_array("forces",postprocess_forces(forces_path=calc.forces_path))
+        calc.atoms.info["stress"]=postprocess_stress(stress_path=calc.stress_path,notation="voigt")
         os.chdir(root_dir)
     results= [calc.atoms for calc in calcs]
     write(args.output, results, format="extxyz", append=True)
