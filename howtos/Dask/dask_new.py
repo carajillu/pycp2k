@@ -87,7 +87,7 @@ if __name__ == "__main__":
             add_PBE_OT(atoms=system,calc=calc,charge=system.info.get("charge",0),LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True,max_scf=1,outer_max_scf=0)
         calc.forces_path=add_print_singlepoint_forces(calc=calc,filename="forces",unit="EV/ANGSTROM")
         calc.stress_path=add_print_stress_tensor(calc=calc,filename="./",unit="EV/ANGSTROM^3")
-        calc.calcs.append(calc)
+        calcs.append(calc)
 
     cluster=create_slurm_cluster(njobs=len(ds), slurm_config=args.slurm_config)
     with Client(cluster) as client:
