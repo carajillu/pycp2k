@@ -21,4 +21,4 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/cp2k-mas
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/conda-envs/cp2k-master/lib # libdbcsr.so
 
 
-python new_dask.py
+python dask_new.py
