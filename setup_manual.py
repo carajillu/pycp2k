@@ -6,7 +6,6 @@ import os.path
 from subprocess import call
 import readline
 import glob
-from setup import setup_manual
 
 
 #===============================================================================
@@ -174,7 +173,7 @@ def main():
 
     #---------------------------------------------------------------------------
     # Write the config file
-    with open('pycp2k/config.py', 'w') as config_file:
+    with open('src/pycp2k/config.py', 'w') as config_file:
         contents = ("#! /usr/bin/env python\n"
                     "# -*- coding: utf-8 -*-\n\n"
                     "cp2k_default_command = \"" + cp2k_default_command + "\"\n"
@@ -186,7 +185,7 @@ def main():
 
     # Start package setup
     utilities.print_title("PYCP2K INSTALLATION STARTED")
-    setup_manual()
+    #setup_manual()
     utilities.print_title("INSTALLATION COMPLETED SUCCESFULLY")
 
 # Run main function by default

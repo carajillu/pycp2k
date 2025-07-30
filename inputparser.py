@@ -367,7 +367,7 @@ def main(xml_path):
     # Put each class into its own module. This produces manu small files, but
     # this way it it easier for autocompletion to handle everything
     for class_name, class_body in class_dictionary.items():
-        with open('pycp2k/classes/{}.py'.format(class_name), 'w') as file:
+        with open('src/pycp2k/classes/{}.py'.format(class_name), 'w') as file:
             file.write(class_body[0] + "\n\n\n")
             class_body_header = (
                 "class " + class_name + "(InputSection):\n"

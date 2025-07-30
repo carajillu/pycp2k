@@ -1,0 +1,16 @@
+name: pycp2k-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.13
+  - ipython
+  - cp2k=2024.2=openblas_openmpi_hae4b963_0 # Can be changed to a different version if needed
+  - ase
+  - dask[complete]
+  - dask-jobqueue
+  - bokeh
+  - numpy
+  - pandas
+  - scipy
+  - tqdm
