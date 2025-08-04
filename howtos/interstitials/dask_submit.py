@@ -56,10 +56,10 @@ def parse_slurm_config(config_file):
 
 def create_slurm_cluster(njobs:int, slurm_config:str):
     config = parse_slurm_config(slurm_config)
-    cluster = SLURMCluster(queue=config["slurm"].get("--partition", "cpu"), # SLURM partition
-                          cores=config["slurm"].get("--cpus", 1),
-                          memory=config["slurm"].get("--mem", "1G"),
-                          walltime=config["slurm"].get("--time", "01:00:00"),
+    cluster = SLURMCluster(queue=config["slurm"].get("partition", "cpu"), # SLURM partition
+                          cores=config["slurm"].get("cpus", 1),
+                          memory=config["slurm"].get("mem", "1G"),
+                          walltime=config["slurm"].get("time", "01:00:00"),
                           job_extra_directives=["--output=worker_%j.o","--error=worker_%j.e"])
     cluster.scale(jobs=njobs) # Launch one job per system
     return cluster
