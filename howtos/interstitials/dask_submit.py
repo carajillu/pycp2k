@@ -38,19 +38,19 @@ def parse_slurm_config(config_file):
 
     with open(config_file, 'r') as f:
         for line in f:
-            stripped = line.strip()
-            if stripped.startswith("#SBATCH"):
-                parts = stripped.split(maxsplit=2)
-                if len(parts) == 3:
-                    flag = parts[1]
-                    value = parts[2]
-                    config["slurm"][flag] = value
-                elif len(parts) == 2:
-                    # Handles flags like "--exclusive" without a value
-                    config["slurm"][parts[1]] = True
-            elif stripped and not stripped.startswith("#"):
-                config["prologue"].append(stripped)
-
+            if line.startswith("#!"):
+                # Skip shebang line
+                continue
+            if line.startswith("#SBATCH"):
+                line=line.split()[1]
+                if "=" in line:
+                    key, value = line.split("=")[0].strip("--"), line.split("=")[1]
+                else:
+                    key = line.split("=")[0]
+                    value = True
+                config["slurm"][key] = value
+            else:
+                config["prologue"].append(line.strip())
     return config
 
 
@@ -59,7 +59,8 @@ def create_slurm_cluster(njobs:int, slurm_config:str):
     cluster = SLURMCluster(queue=config["slurm"].get("--partition", "cpu"), # SLURM partition
                           cores=config["slurm"].get("--cpus", 1),
                           memory=config["slurm"].get("--mem", "1G"),
-                          walltime=config["slurm"].get("--time", "01:00:00"))
+                          walltime=config["slurm"].get("--time", "01:00:00"),
+                          job_extra_directives=["--output=worker_%j.o","--error=worker_%j.e"])
     cluster.scale(jobs=njobs) # Launch one job per system
     return cluster
 
@@ -69,12 +70,19 @@ def run_cp2k(calc):
       calc.run()
       return(os.getcwd())
     except Exception as e:
+      print(f"Error: {e}")
       return(f"Error: {e}")
-    
+
 def mk_dataset(input_structure: Atoms, nreps: int):
-    surf = make_surface(atoms=atoms, vacuum=10.0)
-    surf.info["interstitial_idx"]=find_neighbours(surf, center=surf.get_positions()[112], diameter=3.0)
-    return surf
+    ds=[]
+    for i in range(nreps):
+        surf = make_surface(atoms=atoms, vacuum=10.0)
+        surf.info["interstitial_idx"]=find_neighbours(surf, center=surf.get_positions()[112], diameter=3.0)
+        charge=surf.info.get("charge",0)
+        total_electrons = sum(surf.get_atomic_numbers()) - charge
+        surf.info["oddNumberofElectrons"]=total_electrons%2==1
+        ds.append(surf)
+    return ds    
 
 if __name__ == "__main__":
     args = parse()
@@ -95,10 +103,21 @@ if __name__ == "__main__":
         if args.method == "xtb":
             add_xTB_OT(atoms=system,calc=calc,charge=system.info.get("charge",0),LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True,max_scf=1,outer_max_scf=0)
         elif args.method == "pbe":
-            add_PBE_OT(atoms=system,calc=calc,charge=system.info.get("charge",0),LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True,max_scf=1,outer_max_scf=0)
+             add_PBE_OT(atoms=system, calc=calc,
+                        feval_idx=0,
+                        potential_file_name="POTENTIAL",basis_set_files=["BASIS_MOLOPT"],
+                        preconditioner="FULL_ALL",minimizer="DIIS",
+                        scf_guess="RESTART",max_scf=20,eps_scf=1e-6,
+                        outer_max_scf=2,outer_eps_scf=1e-6,
+                        potential="GTH-PBE", basis_set=["DZVP-MOLOPT-SR-GTH"],
+                        LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True)
+                       
         calc.forces_path=add_print_singlepoint_forces(calc=calc,filename="forces",unit="EV/ANGSTROM")
         calc.stress_path=add_print_stress_tensor(calc=calc,filename="./",unit="EV/ANGSTROM^3")
         calcs.append(calc)
+        os.chdir(calc.working_directory)
+        calc.write_input_file("input.inp")
+        os.chdir(root_dir)
 
     cluster=create_slurm_cluster(njobs=len(ds), slurm_config=args.slurm_config)
     with Client(cluster) as client:

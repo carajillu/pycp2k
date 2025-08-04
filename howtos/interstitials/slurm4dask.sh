@@ -14,13 +14,8 @@
 
 module purge
 module load conda/25.3-python-3.12
-conda activate pycp2k-env
+conda activate /home/users/jclarknicolas/nvproj005/software/conda-envs/pycp2k-env 
 module load scalapack/2.2.2
 module load intel/mkl/2025.1
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/cp2k-master/lib/ # libcp2k.so
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/conda-envs/cp2k-master/lib # libdbcsr.so
-
-
-
-
-python dask_submit.py --cp2k_command /home/shared/nvproj005/software/cp2k-master/bin/cp2k.psmp --input_structure HfO2_supercell.pdb --nreps 4 --method pbe --slurm_config slurm4dask.sh --output interstititals.xyz
