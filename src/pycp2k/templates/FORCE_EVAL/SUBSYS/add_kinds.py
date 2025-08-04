@@ -16,7 +16,7 @@ valence_electrons_ecp = {
     # d-block (Transition Metals)
     "Sc": 3, "Ti": 4, "V": 5, "Cr": 6, "Mn": 7, "Fe": 8, "Co": 9, "Ni": 10, "Cu": 11, "Zn": 12,
     "Y": 3, "Zr": 4, "Nb": 5, "Mo": 6, "Tc": 7, "Ru": 8, "Rh": 9, "Pd": 10, "Ag": 11, "Cd": 12,
-    "Hf": 4, "Ta": 13, "W": 14, "Re": 15, "Os": 16, "Ir": 17, "Pt": 18, "Au": 19, "Hg": 12,
+    "Hf": 12, "Ta": 13, "W": 14, "Re": 15, "Os": 16, "Ir": 17, "Pt": 18, "Au": 19, "Hg": 12,
 
     # f-block (Lanthanides & Actinides)
     "La": 3, "Ce": 4, "Pr": 5, "Nd": 6, "Pm": 7, "Sm": 8, "Eu": 9, "Gd": 10, "Tb": 11, "Dy": 12, "Ho": 13, "Er": 14, "Tm": 15, "Yb": 16, "Lu": 3,
