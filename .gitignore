@@ -36,3 +36,5 @@ examples/*.bak-3
 src/pycp2k/classes/*
 pycp2k/config.py
 test.py
+
+.pycp2k-env/
