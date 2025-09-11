@@ -4,7 +4,7 @@ import os
 class CP2K(CP2K):
 
     def __init__(self,project_name:str="TEMPLATE",print_level:str="MEDIUM",run_type:str="ENERGY",\
-                 working_directory:str=os.getcwd(),cp2k_command:str="cp2k.psmp"):
+                 working_directory:str=None,cp2k_command:str="cp2k.psmp"):
         super().__init__()
         self.working_directory=working_directory
         self.project_name=project_name
@@ -14,6 +14,8 @@ class CP2K(CP2K):
         self.CP2K_INPUT.GLOBAL.Run_type=run_type
         self.version=float(pycp2k.config.build_version)
         self.revision=pycp2k.config.build_revision
+        if self.working_directory is None:
+            self.working_directory=os.getcwd()
         print(f"CP2K version: {self.version}")
         print(f"CP2K revision: {self.revision}")
         print(f"CP2K_command: {self.cp2k_command}")
