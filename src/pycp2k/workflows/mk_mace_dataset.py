@@ -6,6 +6,7 @@ from pycp2k.templates.FORCE_EVAL.xTB_templates import add_xTB_OT
 from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from pycp2k.templates.PRINT.singlepoint import *
 import subprocess
+import random
 
 def parse():
     parser=argparse.ArgumentParser()
@@ -14,12 +15,14 @@ def parse():
     args=parser.parse_args()
     return args
 
-def load_dataset(path: str) -> list[Atoms]:
-    structures=read(path,index=":")
+def load_dataset(path: str, shuffle: bool = False) -> list[Atoms]:
+    structures=read(path,format="extxyz",index=":")
     for structure in structures:
         charge=structure.info.get("charge",0)
         total_electrons = sum(structure.get_atomic_numbers()) - charge
         structure.info["oddNumberofElectrons"]=total_electrons%2==1
+    if shuffle:
+        random.shuffle(structures)
     return structures
 
 def get_elements(structures: list[Atoms]) -> set[str]:
