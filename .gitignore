@@ -38,3 +38,6 @@ pycp2k/config.py
 test.py
 
 .pycp2k-env/
+cp2k_input.xml
+src/pycp2k/config.py
+src/pycp2k/classes/*
