@@ -1,26 +1,24 @@
 #!/bin/bash
-#SBATCH --job-name=main_dask
-#SBATCH --output=echo_%j.o
-#SBATCH --error=echo_%j.e
-#SBATCH --time=0-23:59:59
-#SBATCH --mem=32G
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --hint=nomultithread
+
+#SBATCH --job-name=mpi_test
 #SBATCH --nodes=1
-#SBATCH --partition=cpu
-#SBATCH --qos=normal
-#SBATCH --chdir=./ 
+#SBATCH --output=mpi_test.o
+#SBATCH --error=mpi_test.e
+#SBATCH --ntasks-per-node=16
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:20:00
 
-module purge
-module load conda/25.3-python-3.12
-conda activate pycp2k-env
-module load scalapack/2.2.2
-module load intel/mkl/2025.1
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/cp2k-master/lib/ # libcp2k.so
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/shared/nvproj005/software/conda-envs/cp2k-master/lib # libdbcsr.so
+#SBATCH --account=e05-surfin-mat
+#SBATCH --partition=standard
+#SBATCH --qos=short
 
+module load cp2k/cp2k-2024.3
 
+export SRUN_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK
+export OMP_NUM_THREADS=1
+source /work/e05/shared/pycp2k/anaconda3/bin/activate
+conda activate pycp2k
+echo $CONDA_PREFIX
 
-
-python dask_submit.py --cp2k_command /home/shared/nvproj005/software/cp2k-master/bin/cp2k.psmp --input_structure HfO2_supercell.pdb --nreps 4 --method pbe --slurm_config slurm4dask.sh --output interstititals.xyz
+python dask_submit.py --cp2k_command cp2k.psmp --input_structure HfO2_supercell.pdb --nreps 4 --method pbe --slurm_config slurm4dask.sh --output interstititals.xyz --cp2k_mpi_proc 256
+#python dask_import.py

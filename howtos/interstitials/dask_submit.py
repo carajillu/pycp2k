@@ -9,6 +9,8 @@ from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from pycp2k.templates.PRINT.singlepoint import *
 from pycp2k.workflows.mk_mace_dataset import load_dataset,get_elements,add_isolated_atoms
 
+from pycp2k.workflows.das.archer2 import parse_slurm_config, create_slurm_cluster
+
 from dask_jobqueue import SLURMCluster
 from dask.distributed import Client, wait
 
@@ -21,6 +23,7 @@ def parse():
     import argparse
     parser = argparse.ArgumentParser(description="Run CP2K calculations in parallel using Dask.")
     parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
+    parser.add_argument("--cp2k_mpi_proc", type=int, default=1)
     parser.add_argument("--input_structure", type=str, default="input.xyz", help="Input structure file.")
     parser.add_argument("--nreps", type=int, default=1, help="Number of repetitions for the input structure.")
     parser.add_argument("--method", type=str, default="xtb", choices=["xtb", "pbe"], help="Method to use for calculations (xtb or pbe).")
@@ -28,46 +31,12 @@ def parse():
     parser.add_argument("--output", type=str, default="ds_ready.xyz", help="Output file for the dataset.")
     return parser.parse_args()
 
-def parse_slurm_config(config_file):
-    """
-    Parse a SLURM job script and extract:
-    - SLURM parameters as key-value pairs (e.g. "--mem": "8G")
-    - Job script prologue lines (non-comment shell commands)
-    """
-    config = {"slurm": {}, "prologue": []}
-
-    with open(config_file, 'r') as f:
-        for line in f:
-            if line.startswith("#!"):
-                # Skip shebang line
-                continue
-            if line.startswith("#SBATCH"):
-                line=line.split()[1]
-                if "=" in line:
-                    key, value = line.split("=")[0].strip("--"), line.split("=")[1]
-                else:
-                    key = line.split("=")[0]
-                    value = True
-                config["slurm"][key] = value
-            else:
-                config["prologue"].append(line.strip())
-    return config
-
-
-def create_slurm_cluster(njobs:int, slurm_config:str):
-    config = parse_slurm_config(slurm_config)
-    cluster = SLURMCluster(queue=config["slurm"].get("partition", "cpu"), # SLURM partition
-                          cores=config["slurm"].get("cpus", 1),
-                          memory=config["slurm"].get("mem", "1G"),
-                          walltime=config["slurm"].get("time", "01:00:00"),
-                          job_extra_directives=["--output=worker_%j.o","--error=worker_%j.e"])
-    cluster.scale(jobs=njobs) # Launch one job per system
-    return cluster
 
 def run_cp2k(calc):
     try:
       os.chdir(calc.working_directory)
       calc.run()
+      #cmd=f"srun -n {calc.mpi_n_processes} cp2k.psmp -i input.inp -o output.out"
       return(os.getcwd())
     except Exception as e:
       print(f"Error: {e}")
@@ -99,6 +68,9 @@ if __name__ == "__main__":
         system_dir=os.path.join(root_dir,ds[i].info["index"])
         os.makedirs(system_dir,exist_ok=True) 
         calc=CP2K(cp2k_command=args.cp2k_command,project_name=system.info["index"],run_type="ENERGY_FORCE",working_directory=system_dir)
+        calc.mpi_n_processes=args.cp2k_mpi_proc
+        calc.mpi_on=True
+        calc.mpi_command="srun"
         calc.atoms = system
         if args.method == "xtb":
             add_xTB_OT(atoms=system,calc=calc,charge=system.info.get("charge",0),LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True,max_scf=1,outer_max_scf=0)
@@ -112,8 +84,8 @@ if __name__ == "__main__":
                         potential="GTH-PBE", basis_set=["DZVP-MOLOPT-SR-GTH"],
                         LSD=system.info["oddNumberofElectrons"],Ignore_convergence_failure=True)
                        
-        calc.forces_path=add_print_singlepoint_forces(calc=calc,filename="forces",unit="EV/ANGSTROM")
-        calc.stress_path=add_print_stress_tensor(calc=calc,filename="./",unit="EV/ANGSTROM^3")
+        calc.forces_path=add_print_singlepoint_forces(calc=calc,filename="forces",unit=None)
+        calc.stress_path=add_print_stress_tensor(calc=calc,filename="./",unit=None)
         calcs.append(calc)
         os.chdir(calc.working_directory)
         calc.write_input_file("input.inp")
@@ -122,6 +94,7 @@ if __name__ == "__main__":
     cluster=create_slurm_cluster(njobs=len(ds), slurm_config=args.slurm_config)
     with Client(cluster) as client:
         futures = client.map(run_cp2k, calcs)
+        wait(futures)
         results = client.gather(futures)
     
     #Postprocessing
