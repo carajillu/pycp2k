@@ -9,7 +9,7 @@ from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from pycp2k.templates.PRINT.singlepoint import *
 from pycp2k.workflows.mk_mace_dataset import load_dataset,get_elements,add_isolated_atoms
 
-from pycp2k.workflows.das.archer2 import parse_slurm_config, create_slurm_cluster
+from pycp2k.workflows.dask.archer2 import create_slurm_cluster, parse_slurm_config
 
 from dask_jobqueue import SLURMCluster
 from dask.distributed import Client, wait
