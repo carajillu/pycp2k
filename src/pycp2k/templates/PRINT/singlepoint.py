@@ -67,7 +67,7 @@ def postprocess_forces(forces_path: str):
 #                                     STRESS                                     #
 ##################################################################################
 
-def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str="HARTREE/BOHR^3"):
+def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str=None):
     """
     Add a PRINT section to FORCE_EVAL that prints the stress tensor to a file
     """
