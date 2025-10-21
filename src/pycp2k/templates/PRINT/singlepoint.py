@@ -16,7 +16,7 @@ def postprocess_energy(calc: CP2K):
     """
     Parse the CP2K stdout for the converged value of the energy, return as a float
     """
-    cp2k_output_path=f"{calc.CP2K_INPUT.GLOBAL.Project_name}.out"
+    cp2k_output_path=f"{calc.working_directory}/{calc.CP2K_INPUT.project_name}.out"
     switch=False
     total_energy=None
     with open(cp2k_output_path,"r") as f:
@@ -42,7 +42,7 @@ def add_print_singlepoint_forces(calc:CP2K,filename:str="forces", unit:str=None)
        PRINT_FORCES.Force_unit=unit
     PRINT_FORCES.Filename=filename
     PRINT_FORCES.EACH.Just_energy=1
-    full_filename=f"{calc.project_name}-{PRINT_FORCES.Filename}-1_0.xyz"
+    full_filename=f"{calc.working_directory}/{calc.project_name}-{PRINT_FORCES.Filename}-1_0.xyz"
     print(f"converged forces will be printed to {full_filename}")
     return full_filename
 
@@ -89,7 +89,7 @@ def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str=None):
     PRINT_STRESS_TENSOR.Filename="./"
     if unit is not None:
         PRINT_STRESS_TENSOR.Stress_unit=unit
-    full_filename=f"{calc.project_name}-1_0.stress_tensor"
+    full_filename=f"{calc.working_directory}/{calc.project_name}-1_0.stress_tensor"
     return full_filename
 
 def postprocess_stress(stress_path: str, notation: str="voigt"):
