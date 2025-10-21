@@ -49,18 +49,30 @@ def add_print_singlepoint_forces(calc:CP2K,filename:str="forces", unit:str=None)
 def postprocess_forces(forces_path: str):
     """
     Parse the forces output file, return as a np.array
+    The format of the forces is the following:
+
+ ATOMIC FORCES in [a.u.]
+
+ # Atom   Kind   Element          X              Y              Z
+      1      1      O          -0.00000000     0.00000000    -0.01469706
+      2      2      H           0.00000000    -0.00457203     0.00734853
+      3      2      H           0.00000000     0.00457203     0.00734853
+ SUM OF ATOMIC FORCES           0.00000000    -0.00000000    -0.00000000     0.00000000
+
     """
     parse=False
     forces=[]
     with open(forces_path,"r") as f:
-        for line in f:
+        for line in f:            
             line=line.split()
-            if line[0:2]==['FORCES|', 'Sum']:
+            if len(line)==0:
+                continue
+            if line[0:2]==["#","Atom"]:
+                parse=True
+            if line[0:4]==["SUM","OF","ATOMIC","FORCES"]:
                 parse=False
             if parse:
-                forces.append([float(i) for i in line[2:5]])
-            if line==['FORCES|', 'Atom', 'x', 'y', 'z', '|f|']:
-                parse=True
+                forces.append([float(i) for i in line[5:8]])
     return np.array(forces)
 
 ##################################################################################
@@ -83,6 +95,24 @@ def add_print_stress_tensor(calc:CP2K,filename:str="stress",unit:str=None):
 def postprocess_stress(stress_path: str, notation: str="voigt"):
     """
     Parse the stress output file and return the stress tensor as a np.array
+    The format of the stress tensor is the following
+
+
+ STRESS| Analytical stress tensor [GPa]
+ STRESS|                        x                   y                   z
+ STRESS|      x       -1.82171057329E-03   2.32487388614E-15  -2.59566886152E-14
+ STRESS|      y        2.32487388614E-15  -1.76083879366E-01   1.11906267290E-08
+ STRESS|      z       -2.59566886152E-14   1.11906267290E-08  -2.80504239179E-01
+ STRESS| 1/3 Trace                                            -1.52803276373E-01
+ STRESS| Determinant                                          -8.99784289021E-05
+
+ STRESS| Eigenvectors and eigenvalues of the analytical stress tensor [GPa]
+ STRESS|                        1                   2                   3
+ STRESS| Eigenvalues  -2.80504239179E-01  -1.76083879366E-01  -1.82171057329E-03
+ STRESS|      x           0.000000000000     -0.000000000000      1.000000000000
+ STRESS|      y          -0.000000107169      1.000000000000      0.000000000000
+ STRESS|      z           1.000000000000      0.000000107169     -0.000000000000
+
     """
     notation_types=["full","voigt"]
     if notation not in notation_types:
