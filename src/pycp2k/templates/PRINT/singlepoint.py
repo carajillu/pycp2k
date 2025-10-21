@@ -67,12 +67,12 @@ def postprocess_forces(forces_path: str):
             line=line.split()
             if len(line)==0:
                 continue
-            if line[0:2]==["#","Atom"]:
+            elif line[0:2]==["#","Atom"]:
                 parse=True
-            if line[0:4]==["SUM","OF","ATOMIC","FORCES"]:
+            elif line[0:4]==["SUM","OF","ATOMIC","FORCES"]:
                 parse=False
-            if parse:
-                forces.append([float(i) for i in line[5:8]])
+            elif parse:
+                forces.append([float(i) for i in line[3:6]])
     return np.array(forces)
 
 ##################################################################################
