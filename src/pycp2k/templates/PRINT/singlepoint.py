@@ -16,7 +16,7 @@ def postprocess_energy(calc: CP2K):
     """
     Parse the CP2K stdout for the converged value of the energy, return as a float
     """
-    cp2k_output_path=f"{calc.working_directory}/{calc.CP2K_INPUT.project_name}.out"
+    cp2k_output_path=f"{calc.working_directory}/{calc.project_name}.out"
     switch=False
     total_energy=None
     with open(cp2k_output_path,"r") as f:
