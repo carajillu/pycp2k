@@ -273,11 +273,12 @@ class CP2K(object):
         command_for_version_check = " ".join([self.cp2k_command, "-v "])
         version_result = check_output(command_for_version_check, shell=True, cwd=working_directory)
         result_lines = version_result.splitlines()
-        run_version = result_lines[0].split()[2].decode()
-        if float(run_version) <= 9.1:
-            run_revision = result_lines[1].split()[-1].decode()
-        else:
-            run_revision = run_version.split()[-1].split(".")[-1]
+        for line in result_lines:
+            line=line.decode()
+            if "CP2K version" in line:
+                run_version = line.split()[2].split(".")[0]
+                run_revision = line.split()[2].split(".")[1]
+                break
         build_version = pycp2k.config.build_version
         build_revision = pycp2k.config.build_revision
 
