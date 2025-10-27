@@ -100,11 +100,9 @@ def main():
                 print("    [{}] {}".format(i+1, name))
             else:
                 print("    [x] {} not available".format(name))
-        print (cp2k_commands)
         print("    [" + str(len(cp2k_commands)+1) + "] Custom CP2K executable name\n")
         options = [x+1 for x in range(0, len(cp2k_commands)) if cp2k_commands[x][1]]
         options.append(len(cp2k_commands)+1)
-        print(options)
         option_number = ask('Enter option number: ', options)
 
         if option_number == len(cp2k_commands)+1:
