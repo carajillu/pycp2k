@@ -26,7 +26,7 @@ def parse_slurm_config(config_file):
     return config
 
     
-def create_slurm_cluster(slurm_config:str):
+def create_cluster(slurm_config:str):
     config = parse_slurm_config(slurm_config)
     job_extra_directives=[]
     for key,value in config["slurm"].items():
