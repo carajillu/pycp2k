@@ -1,5 +1,4 @@
 from dask_jobqueue import SLURMCluster
-from dask.distributed import Client, wait
 
 def parse_slurm_config(config_file):
     """ 
