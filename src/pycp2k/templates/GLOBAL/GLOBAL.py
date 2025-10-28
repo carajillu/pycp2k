@@ -17,8 +17,7 @@ class CP2K(CP2K):
         self.CP2K_INPUT.GLOBAL.Run_type=run_type
         self.version=float(pycp2k.config.build_version)
         self.revision=pycp2k.config.build_revision
-        if self.working_directory is None:
-            self.working_directory=os.getcwd()
+        self.working_directory=working_directory
         print(f"CP2K version: {self.version}")
         print(f"CP2K revision: {self.revision}")
         print(f"CP2K_command: {self.cp2k_command}")
@@ -39,7 +38,18 @@ class CP2K(CP2K):
         add_cell(atoms,self)
         add_kinds(atoms,self)
 
-    
+    @property
+    def working_directory(self):
+        return self._working_directory
+    @working_directory.setter
+    def working_directory(self,working_directory):
+        if working_directory is None:
+           self._working_directory=os.getcwd()
+        else:
+           os.makedirs(working_directory,exist_ok=True)
+           self._working_directory=os.path.abspath(working_directory)
+
+
     def cleanup(self,quiet:bool=False):
         
         if not quiet:
