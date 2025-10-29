@@ -43,6 +43,9 @@ class CP2K(CP2K):
         add_coords(atoms,self)
         add_cell(atoms,self)
         add_kinds(atoms,self)
+    @atoms.deleter
+    def atoms(self):
+        del(self._atoms)
 
     @property
     def working_directory(self):
