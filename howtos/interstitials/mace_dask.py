@@ -13,8 +13,8 @@ from ase.md import MDLogger
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from pycp2k.templates.PRINT.singlepoint import *
-#from pycp2k.dask_utils.archer2 import create_cluster
-from pycp2k.dask_utils.local import create_cluster
+from pycp2k.dask_utils.archer2 import create_cluster
+#from pycp2k.dask_utils.local import create_cluster
 
 from make_filaments import make_surface, find_cylinders, make_interstitial, find_neighbours
 
@@ -43,14 +43,14 @@ def get_mace_quantities():
     atoms.info["mace_energy"]=atoms.calc.results["energy"]
     atoms.arrays['node_energy']=atoms.calc.results['node_energy']
     atoms.arrays['mace_forces']=atoms.calc.results['forces']
-    atoms.info["stress"]=atoms.calc.results["stress"]
+    atoms.info["mace_stress"]=atoms.calc.results["stress"]
 
 def return_cp2k_dask(client,cp2k_calc):
     def run_cp2k_singlepoint(cp2k_calc):
         cp2k_calc.run()
         atoms.info["cp2k_energy"]=postprocess_energy(calc=cp2k_calc)
         atoms.set_array("cp2k_forces",postprocess_forces(forces_path=cp2k_calc.forces_path))
-        atoms.info["stress_cp2k"]=postprocess_stress(stress_path=cp2k_calc.stress_path,notation="voigt")
+        atoms.info["cp2k_stress"]=postprocess_stress(stress_path=cp2k_calc.stress_path,notation="voigt")
         return atoms.copy()
     def cp2k_dask():
         idx=len(atoms.futures)
@@ -62,6 +62,7 @@ def return_cp2k_dask(client,cp2k_calc):
         cp2k_calc.forces_path=add_print_singlepoint_forces(calc=cp2k_calc,filename="forces",unit="EV/ANGSTROM")
         cp2k_calc.stress_path=add_print_stress_tensor(calc=cp2k_calc,filename=f"./",unit="EV/ANGSTROM^3")
         print(f"Submitting CP2K calculation via dask")
+        #cp2k_calc.write_input_file(f"{cp2k_calc.working_directory}/input.inp")
         fut=client.submit(run_cp2k_singlepoint,cp2k_calc,pure=False,key=f"xtb_{idx}") #key might be useful later
         atoms.futures.append(fut)
     return cp2k_dask
@@ -116,11 +117,12 @@ if __name__=="__main__":
    dyn=Langevin(atoms=atoms, timestep=1*fs, temperature_K=300, friction=0.01)
    Logger=MDLogger(dyn=dyn,atoms=atoms, logfile="log.txt", header=True, stress=False, peratom=False, mode="w")
    cp2k_dask=return_cp2k_dask(client,cp2k_calc)
-   dyn.attach(Logger,interval=1000)
-   dyn.attach(get_mace_quantities, interval=1000)
-   dyn.attach(cp2k_dask,interval=1000)
+   dyn.attach(Logger,interval=1e+3)
+   dyn.attach(get_mace_quantities, interval=1e+3)
+   dyn.attach(cp2k_dask,interval=1e+3)
    dyn.run(1e+6)
 
+  
    for future in as_completed(atoms.futures):
        try:
            snapshot=future.result()
@@ -134,3 +136,4 @@ if __name__=="__main__":
        print(future.result(),type(future.result()))
        systems.append(future.result())
    write("result.xyz",systems,format="extxyz")
+

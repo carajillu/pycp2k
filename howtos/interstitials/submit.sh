@@ -6,22 +6,22 @@
 #SBATCH --error=mpi_test.e
 #SBATCH --ntasks-per-node=16
 #SBATCH --cpus-per-task=1
-#SBATCH --time=00:20:00
+#SBATCH --time=24:00:00
 
 #SBATCH --account=e05-surfin-mat
 #SBATCH --partition=standard
-#SBATCH --qos=short
+#SBATCH --qos=standard
 
-export MPLCONFIGDIR=/work/e05/shared/
+module load PrgEnv-gnu
+module load cray-fftw
+module load mkl
 
-module load cp2k/cp2k-2024.3
+CP2K_DIR=/mnt/lustre/a2fs-work4/work/y07/shared/apps/core/cp2k/cp2k-2025.2
+source $CP2K_DIR/tools/toolchain/install/setup
+export PATH=${CP2K_DIR}/exe/local:$PATH
 
-export SRUN_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK
-export OMP_NUM_THREADS=1
 source /work/e05/shared/pycp2k/anaconda3/bin/activate
 conda activate pycp2k
 echo $CONDA_PREFIX
-export CP2K_MPI_PROCESSES=256
 
-#python dask_submit.py --cp2k_command cp2k.psmp --input_structure HfO2_supercell.pdb --nreps 4 --method pbe --slurm_config slurm4dask.sh --output interstititals.xyz --cp2k_mpi_proc 256
 python mace_dask.py --cp2k_command cp2k.psmp --input_structure HfO2_supercell.pdb --slurm_config dask_cfg.sh --cp2k_mpi_processes 256
