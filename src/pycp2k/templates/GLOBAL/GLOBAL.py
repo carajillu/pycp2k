@@ -7,7 +7,7 @@ from pycp2k.templates.FORCE_EVAL.SUBSYS.add_kinds import add_kinds
 class CP2K(CP2K):
 
     def __init__(self,project_name:str="TEMPLATE",print_level:str="MEDIUM",run_type:str="ENERGY",\
-                 working_directory:str=None,cp2k_command:str="cp2k.psmp",mpi_n_procs: int=multiprocessing.cpu_count()):
+                 working_directory:str=None,cp2k_command:str="cp2k.psmp",mpi_n_procs: int=None):
         super().__init__()
         self._atoms=None
         self.working_directory=working_directory
@@ -20,6 +20,8 @@ class CP2K(CP2K):
         self.revision=pycp2k.config.build_revision
         self.working_directory=working_directory
         if self.mpi_on is True:
+           if mpi_n_procs is None:
+              mpi_n_procs=multiprocessing.cpu_count()
            self.mpi_n_processes=mpi_n_procs
            print(f"Number of MPI processes: {self.mpi_n_processes}")
         print(f"CP2K version: {self.version}")
