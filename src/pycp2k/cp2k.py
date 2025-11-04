@@ -44,12 +44,12 @@ class CP2K(object):
             GLOBAL.Project_name.
         cp2k_command: string
             The command with which CP2K is called
-        cp2k_flags: dict
+        cp2k_flags: list[str]
             Contains any additional cp2k executable flags. Usage:
             cp2k_flags.append("--xml")
         mpi_on: bool
             Whether MPI parallellization should be used
-        mpi_flags: dict
+        mpi_flags: list[str]
             Contains any additional MPI executable flags. Usage:
             mpi_flags.append("-debug")
         mpi_command: string
