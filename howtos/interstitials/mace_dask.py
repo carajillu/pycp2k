@@ -18,6 +18,7 @@ from pycp2k.templates.PRINT.singlepoint import *
 from pycp2k.dask_utils.local import create_cluster
 
 from pycp2k.ase_utils.dask_calculators import return_cp2k_dask_singlepoint
+from pycp2k.ase_utils.performance import return_performance_meter
 
 from make_filaments import make_surface, find_cylinders, make_interstitial, find_neighbours
 
@@ -32,6 +33,9 @@ def parse():
     parser.add_argument("--cp2k_omp_threads",type=int,default=1,help="Number of OMP threads for each MPI rank used by CP2K (will be set at system level with os.environ)")
     parser.add_argument("--dask_scale",type=int,default=1,help="Number of DASK jobs to spawn")
     parser.add_argument("--mace_num_threads",type=int,default=1,help="Number of OMP threads used by MACE (will be set at system level with os.environ)")
+    parser.add_argument("--timestep",type=int,default=1,help="MD timestep in fs")
+    parser.add_argument("--nsteps",type=int,default=10,help="Number of MD steps")
+    parser.add_argument("--mdstride",type=int,default=1,help="MD stride in number of steps")
     parser.add_argument("--output", type=str, default="ds_ready.xyz", help="Output file for the dataset.")
     return parser.parse_args()
 
@@ -102,13 +106,15 @@ if __name__=="__main__":
    client=Client(cluster)
 
    # Setup MD calculation
-   dyn=Langevin(atoms=atoms, timestep=1*fs, temperature_K=300, friction=0.01)
+   dyn=Langevin(atoms=atoms, timestep=args.timestep*fs, temperature_K=300, friction=0.01)
    Logger=MDLogger(dyn=dyn,atoms=atoms, logfile="log.txt", header=True, stress=False, peratom=False, mode="w")
    cp2k_dask=return_cp2k_dask_singlepoint(atoms=atoms,cp2k_calc=cp2k_calc,client=client,label="PBE")
-   dyn.attach(Logger,interval=1000)
-   dyn.attach(get_mace_quantities, interval=1000)
-   dyn.attach(cp2k_dask,interval=1000)
-   dyn.run(10000)
+   performance_meter=return_performance_meter(atoms=atoms,dyn=dyn)
+   dyn.attach(performance_meter,interval=args.mdstride)
+   dyn.attach(Logger,interval=args.mdstride)
+   dyn.attach(get_mace_quantities, interval=args.mdstride)
+   dyn.attach(cp2k_dask,interval=args.mdstride)
+   dyn.run(args.nsteps)
    
    for future in as_completed(atoms.futures):
        try:
