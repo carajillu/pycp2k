@@ -1,5 +1,6 @@
 import argparse, os, sys
 from copy import deepcopy
+import torch
 
 from dask.distributed import Client, wait, as_completed
 
@@ -23,10 +24,13 @@ from make_filaments import make_surface, find_cylinders, make_interstitial, find
 def parse():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Run CP2K calculations in parallel using Dask.")
-    parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
     parser.add_argument("--input_structure", type=str, default="input.xyz", help="Input structure file.")
-    parser.add_argument("--dask_scale",type=int,default=1,help="Number of DASK jobs to spawn")
+    parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
     parser.add_argument("--cp2k_mpi_processes",type=int,default=1,help="Number of MPI processes to run CP2K with")
+    parser.add_argument("--cp2k_nodes",type=int,default=None,help="Number of nodes to run CP2K on")
+    parser.add_argument("--cp2k_omp_threads",type=int,default=1,help="Number of OMP threads for each MPI rank used by CP2K (will be set at system level with os.environ)")
+    parser.add_argument("--dask_scale",type=int,default=1,help="Number of DASK jobs to spawn")
+    parser.add_argument("--mace_num_threads",type=int,default=1,help="Number of OMP threads used by MACE (will be set at system level with os.environ)")
     parser.add_argument("--output", type=str, default="ds_ready.xyz", help="Output file for the dataset.")
     return parser.parse_args()
 
@@ -58,7 +62,6 @@ def compare_mace_cp2k(atoms,basename):
        write(f"{basename}_trj.xyz",atoms,format="extxyz",append=True)
 
 if __name__=="__main__":
-   
    #parse arguments
    args=parse()
 
@@ -69,8 +72,11 @@ if __name__=="__main__":
    print(atoms)
 
    # create cp2k calculator, setup PBE and add the first atoms object (for potentials and basis sets)
+   os.environ["OMP_NUM_THREADS"]=str(args.cp2k_omp_threads)
    cp2k_calc=CP2K(run_type="ENERGY_FORCE",mpi_n_procs=args.cp2k_mpi_processes)
-   cp2k_calc.mpi_flags=[]#["--nodes=2","--ntasks-per-node=128"]
+   if args.cp2k_nodes is not None:
+      cp2k_calc.mpi_flags.append[f"--nodes={args.cp2k_nodes}"]
+      cp2k_calc.mpi_flags.append[f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}"]
 
    add_PBE_OT(atoms=atoms, calc=cp2k_calc,
            feval_idx=0,
@@ -81,6 +87,8 @@ if __name__=="__main__":
            )
 
    # Create MACE calculator and assign it to Atoms object
+   torch.set_num_threads(args.mace_num_threads)
+   print(f"running torch with {torch.get_num_threads()} threads.")
    mace_calc=MACECalculator(model_path="mace-mpa-0-medium.model",device="cpu")
    atoms.calc=mace_calc
 
@@ -94,10 +102,10 @@ if __name__=="__main__":
    dyn=Langevin(atoms=atoms, timestep=1*fs, temperature_K=300, friction=0.01)
    Logger=MDLogger(dyn=dyn,atoms=atoms, logfile="log.txt", header=True, stress=False, peratom=False, mode="w")
    cp2k_dask=return_cp2k_dask_singlepoint(atoms=atoms,cp2k_calc=cp2k_calc,client=client,label="PBE")
-   dyn.attach(Logger,interval=1)
-   dyn.attach(get_mace_quantities, interval=1)
-   dyn.attach(cp2k_dask,interval=1)
-   dyn.run(10)
+   dyn.attach(Logger,interval=1000)
+   dyn.attach(get_mace_quantities, interval=1000)
+   dyn.attach(cp2k_dask,interval=1000)
+   dyn.run(10000)
    
    for future in as_completed(atoms.futures):
        try:
