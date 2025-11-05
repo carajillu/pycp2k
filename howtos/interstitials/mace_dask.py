@@ -1,4 +1,5 @@
-import argparse, os
+import argparse, os, sys
+from copy import deepcopy
 
 from dask.distributed import Client, wait, as_completed
 
@@ -13,8 +14,9 @@ from ase.md import MDLogger
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from pycp2k.templates.PRINT.singlepoint import *
-from pycp2k.dask_utils.archer2 import create_cluster
-#from pycp2k.dask_utils.local import create_cluster
+from pycp2k.dask_utils.local import create_cluster
+
+from pycp2k.ase_utils.dask_calculators import return_cp2k_dask_singlepoint
 
 from make_filaments import make_surface, find_cylinders, make_interstitial, find_neighbours
 
@@ -22,12 +24,8 @@ def parse():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Run CP2K calculations in parallel using Dask.")
     parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
-    parser.add_argument("--cp2k_mpi_proc", type=int, default=1)
     parser.add_argument("--input_structure", type=str, default="input.xyz", help="Input structure file.")
-    parser.add_argument("--nreps", type=int, default=1, help="Number of repetitions for the input structure.")
-    parser.add_argument("--method", type=str, default="xtb", choices=["xtb", "pbe"], help="Method to use for calculations (xtb or pbe).")
-    parser.add_argument("--slurm_config", type=str, default="slurm.sh", help="SLURM configuration file to use when creating dask cluster.")
-    parser.add_argument("--slurm_scale",type=int,default=1,help="Number of SLURM nodes to spawn")
+    parser.add_argument("--dask_scale",type=int,default=1,help="Number of DASK jobs to spawn")
     parser.add_argument("--cp2k_mpi_processes",type=int,default=1,help="Number of MPI processes to run CP2K with")
     parser.add_argument("--output", type=str, default="ds_ready.xyz", help="Output file for the dataset.")
     return parser.parse_args()
@@ -44,28 +42,6 @@ def get_mace_quantities():
     atoms.arrays['node_energy']=atoms.calc.results['node_energy']
     atoms.arrays['mace_forces']=atoms.calc.results['forces']
     atoms.info["mace_stress"]=atoms.calc.results["stress"]
-
-def return_cp2k_dask(client,cp2k_calc):
-    def run_cp2k_singlepoint(cp2k_calc):
-        cp2k_calc.run()
-        atoms.info["cp2k_energy"]=postprocess_energy(calc=cp2k_calc)
-        atoms.set_array("cp2k_forces",postprocess_forces(forces_path=cp2k_calc.forces_path))
-        atoms.info["cp2k_stress"]=postprocess_stress(stress_path=cp2k_calc.stress_path,notation="voigt")
-        return atoms.copy()
-    def cp2k_dask():
-        idx=len(atoms.futures)
-        cp2k_calc.project_name=f"cp2k_{idx}"
-        cp2k_calc.working_directory=f"results/cp2k_{idx}"
-        atoms4dask=atoms.copy()
-        atoms4dask.calc=None
-        cp2k_calc.atoms=atoms4dask
-        cp2k_calc.forces_path=add_print_singlepoint_forces(calc=cp2k_calc,filename="forces",unit="EV/ANGSTROM")
-        cp2k_calc.stress_path=add_print_stress_tensor(calc=cp2k_calc,filename=f"./",unit="EV/ANGSTROM^3")
-        print(f"Submitting CP2K calculation via dask")
-        #cp2k_calc.write_input_file(f"{cp2k_calc.working_directory}/input.inp")
-        fut=client.submit(run_cp2k_singlepoint,cp2k_calc,pure=False,key=f"xtb_{idx}") #key might be useful later
-        atoms.futures.append(fut)
-    return cp2k_dask
 
 
 def compare_mace_cp2k(atoms,basename):
@@ -87,11 +63,15 @@ if __name__=="__main__":
    args=parse()
 
    # Create the Atoms object
-   atoms=read(args.input_structure)
+   #atoms=read(args.input_structure)
+   from ase.build import molecule
+   atoms=molecule("H2O",vacuum=3.0)
    print(atoms)
 
    # create cp2k calculator, setup PBE and add the first atoms object (for potentials and basis sets)
    cp2k_calc=CP2K(run_type="ENERGY_FORCE",mpi_n_procs=args.cp2k_mpi_processes)
+   cp2k_calc.mpi_flags=[]#["--nodes=2","--ntasks-per-node=128"]
+
    add_PBE_OT(atoms=atoms, calc=cp2k_calc,
            feval_idx=0,
            preconditioner="FULL_ALL",minimizer="DIIS", # Options for pycp2k.templates.FORCE_EVAL.DFT.SCF.OT.add_OT
@@ -105,35 +85,31 @@ if __name__=="__main__":
    atoms.calc=mace_calc
 
 
-   # Create the dask cluster with dynamic scaling, add futures list to the Atoms object
-   cluster=create_cluster(slurm_config=args.slurm_config)
-   cluster.adapt(minimum=2, maximum=20)
-   #cluster=create_cluster()
-   #cluster.scale(1)
+   #Create the MACE local cluster
+   cluster=create_cluster()
+   cluster.scale(args.dask_scale)
    client=Client(cluster)
-   atoms.futures=[]
 
    # Setup MD calculation
    dyn=Langevin(atoms=atoms, timestep=1*fs, temperature_K=300, friction=0.01)
    Logger=MDLogger(dyn=dyn,atoms=atoms, logfile="log.txt", header=True, stress=False, peratom=False, mode="w")
-   cp2k_dask=return_cp2k_dask(client,cp2k_calc)
-   dyn.attach(Logger,interval=1e+3)
-   dyn.attach(get_mace_quantities, interval=1e+3)
-   dyn.attach(cp2k_dask,interval=1e+3)
-   dyn.run(1e+6)
-
-  
+   cp2k_dask=return_cp2k_dask_singlepoint(atoms=atoms,cp2k_calc=cp2k_calc,client=client,label="PBE")
+   dyn.attach(Logger,interval=1)
+   dyn.attach(get_mace_quantities, interval=1)
+   dyn.attach(cp2k_dask,interval=1)
+   dyn.run(10)
+   
    for future in as_completed(atoms.futures):
        try:
            snapshot=future.result()
            compare_mace_cp2k(snapshot,"training")
        except Exception as e:
            print(f"Task {future.key} failed with error {e}")
-       
-   systems=[]
+   
    wait(atoms.futures)
+   systems=[]
    for future in atoms.futures:
+       print (future.status)
        print(future.result(),type(future.result()))
        systems.append(future.result())
    write("result.xyz",systems,format="extxyz")
-
