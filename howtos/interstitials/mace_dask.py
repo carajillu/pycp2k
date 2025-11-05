@@ -25,6 +25,7 @@ def parse():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Run CP2K calculations in parallel using Dask.")
     parser.add_argument("--input_structure", type=str, default="input.xyz", help="Input structure file.")
+    parser.add_argument("--water",action="store_true",help="Debugging run with a water molecule")
     parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
     parser.add_argument("--cp2k_mpi_processes",type=int,default=1,help="Number of MPI processes to run CP2K with")
     parser.add_argument("--cp2k_nodes",type=int,default=None,help="Number of nodes to run CP2K on")
@@ -66,9 +67,11 @@ if __name__=="__main__":
    args=parse()
 
    # Create the Atoms object
-   #atoms=read(args.input_structure)
-   from ase.build import molecule
-   atoms=molecule("H2O",vacuum=3.0)
+   if args.water:
+      from ase.build import molecule
+      atoms=molecule("H2O",vacuum=3.0)
+   else:
+      atoms=read(args.input_structure)
    print(atoms)
 
    # create cp2k calculator, setup PBE and add the first atoms object (for potentials and basis sets)
