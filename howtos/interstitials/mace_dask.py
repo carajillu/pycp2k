@@ -78,8 +78,8 @@ if __name__=="__main__":
    os.environ["OMP_NUM_THREADS"]=str(args.cp2k_omp_threads)
    cp2k_calc=CP2K(run_type="ENERGY_FORCE",mpi_n_procs=args.cp2k_mpi_processes)
    if args.cp2k_nodes is not None:
-      cp2k_calc.mpi_flags.append[f"--nodes={args.cp2k_nodes}"]
-      cp2k_calc.mpi_flags.append[f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}"]
+      cp2k_calc.mpi_flags.append(f"--nodes={args.cp2k_nodes}")
+      cp2k_calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
 
    add_PBE_OT(atoms=atoms, calc=cp2k_calc,
            feval_idx=0,
