@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #SBATCH --job-name=mpi_test
-#SBATCH --nodes=1
+#SBATCH --nodes=10
 #SBATCH --output=mpi_test.o
 #SBATCH --error=mpi_test.e
-#SBATCH --ntasks-per-node=16
+##SBATCH --ntasks-per-node=128
 #SBATCH --cpus-per-task=1
 #SBATCH --time=24:00:00
 
@@ -24,4 +24,8 @@ source /work/e05/shared/pycp2k/anaconda3/bin/activate
 conda activate pycp2k
 echo $CONDA_PREFIX
 
-python mace_dask.py --cp2k_command cp2k.psmp --input_structure HfO2_supercell.pdb --slurm_config dask_cfg.sh --cp2k_mpi_processes 256
+python mace_dask.py --input_structure HfO2_supercell.pdb \
+	--cp2k_command cp2k.psmp --cp2k_nodes 2 --cp2k_mpi_processes 256 --cp2k_omp_threads 1\
+	--dask_scale 4\
+	--mace_num_threads 128
+        --timestep 1 --mdstride 100 --nsteps 10000
