@@ -7,6 +7,9 @@ def add_PBE(calc:CP2K,feval_idx:int=0,charge:int=0,LSD:bool=False,**kwargs):
     print(f"===Adding PBE to FORCE_EVAL section {feval_idx}===")
     calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].Method="QS" # This is not optional
     DFT=calc.CP2K_INPUT.FORCE_EVAL_list[feval_idx].DFT
+    wfn_restart_filename=kwargs.get("WFN_RESTART_FILE_NAME",None)
+    if wfn_restart_filename is not None:
+        DFT.Wfn_restart_file_name=wfn_restart_filename
     DFT.Charge=charge
     DFT.Lsd=LSD
     # Get potential file
