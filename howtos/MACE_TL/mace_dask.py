@@ -20,7 +20,6 @@ from pycp2k.dask_utils.local import create_cluster
 from pycp2k.ase_utils.dask_calculators import return_cp2k_dask_singlepoint
 from pycp2k.ase_utils.performance import return_performance_meter
 
-from make_filaments import make_surface, find_cylinders, make_interstitial, find_neighbours
 
 def parse():
     """Parse command line arguments."""
