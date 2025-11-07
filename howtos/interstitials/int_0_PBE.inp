@@ -1,0 +1,130 @@
+
+&GLOBAL
+    PRINT_LEVEL  MEDIUM
+    PROJECT_NAME test 
+    RUN_TYPE GEO_OPT
+&END GLOBAL
+
+&MOTION
+   	&GEO_OPT
+      		TYPE MINIMIZATION
+      		OPTIMIZER BFGS
+                MAX_ITER 1
+   	&END GEO_OPT
+	&CELL_OPT
+                MAX_ITER 1
+      		OPTIMIZER BFGS
+      		TYPE DIRECT_CELL_OPT
+      		KEEP_ANGLES   .TRUE. 
+      		KEEP_SYMMETRY .TRUE.          
+   	&END CELL_OPT
+&END MOTION
+
+&FORCE_EVAL
+	METHOD QS
+   	STRESS_TENSOR ANALYTICAL
+   	&DFT
+      		BASIS_SET_FILE_NAME BASIS_MOLOPT
+      		BASIS_SET_FILE_NAME BASIS_ADMM
+      		BASIS_SET_FILE_NAME BASIS_ADMM_MOLOPT
+      		POTENTIAL_FILE_NAME POTENTIAL
+      		#WFN_RESTART_FILE_NAME ../q2/tantala-RESTART.wfn
+                #CHARGE -2
+                #UKS
+
+      		&SCF
+                        IGNORE_CONVERGENCE_FAILURE
+         		MAX_SCF 1 
+         		EPS_SCF 1.0E-6
+          		SCF_GUESS RESTART
+         		&OT  T
+            			MINIMIZER DIIS
+            			PRECONDITIONER FULL_ALL
+         		&END OT
+         		&OUTER_SCF  T
+            			EPS_SCF 1.0E-6 
+            			MAX_SCF 1 
+         		&END
+
+      			#&MIXING T
+         		#	METHOD BROYDEN_MIXING
+         		#	ALPHA 0.1
+         		#	BETA 0.5
+         		#	NBUFFER 8
+      			#&END MIXING
+      		&END SCF
+
+      		&QS
+         		METHOD GPW
+                        MIN_PAIR_LIST_RADIUS -1
+      		&END QS
+
+      		&MGRID
+         		CUTOFF  650
+         		REL_CUTOFF  70
+      		&END MGRID
+
+		&XC
+      			&XC_FUNCTIONAL
+       				&PBE
+       				&END PBE
+      			&END XC_FUNCTIONAL
+    		&END XC
+
+      		&POISSON
+         		PERIODIC XYZ
+      		&END POISSON
+
+            &PRINT
+                &MO_CUBES
+                    WRITE_CUBE TRUE
+                    NHOMO 5
+                    NLUMO 5
+                &END
+                &PDOS
+                    NLUMO 10
+                &END PDOS
+            &END
+
+	&END DFT
+
+	&SUBSYS
+    		&CELL
+       			ABC 12.735963 15.226382 19.492328   
+       			ALPHA_BETA_GAMMA 90.0  90.0  90.0
+       			PERIODIC XYZ
+       			!MULTIPLE_UNIT_CELL 2 2 4
+      		&END CELL
+
+     		&KIND Ta
+     	 		BASIS_SET DZVP-MOLOPT-SR-GTH
+      			POTENTIAL GTH-PBE-q13
+      			BASIS_SET AUX_FIT cFIT10
+     		&END KIND
+
+     		&KIND O
+      			BASIS_SET DZVP-MOLOPT-SR-GTH
+      			POTENTIAL GTH-PBE-q6
+      			BASIS_SET AUX_FIT pFIT3
+     		&END KIND
+     		&KIND O1
+      			BASIS_SET DZVP-MOLOPT-SR-GTH
+      			POTENTIAL GTH-PBE-q6
+      			BASIS_SET AUX_FIT pFIT3
+                        CORE_CORRECTION 0.0
+     		&END KIND
+
+     		&TOPOLOGY
+      			COORD_FILE_FORMAT XYZ
+      			COORD_FILE_NAME ../xyzs/int_0.xyz
+      			!MULTIPLE_UNIT_CELL 2 2 4
+     		&END TOPOLOGY
+     
+     		&PRINT
+      			&CELL MEDIUM
+      			&END CELL
+      			&STRUCTURE_DATA ON
+      			&END STRUCTURE_DATA
+     		&END PRINT
+	&END SUBSYS
+&END FORCE_EVAL
