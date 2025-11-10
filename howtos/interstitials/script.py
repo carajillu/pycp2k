@@ -1,31 +1,38 @@
-from ase.io import read
+from ase.io import read, write
 from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 from dask.distributed import Client, wait, as_completed
 from pycp2k.dask_utils.local import create_cluster
 from pycp2k.ase_utils.interstitials import remove_random_atom
 from copy import deepcopy
+from dask.distributed import wait
 
 def run_cp2k(calc):
     calc.run()
     #get the optimised coordinates
-    return calc
-    return 0
+    try:
+       crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
+       atoms=read(crdfilename,":")[-1]
+    except Exception as e:
+       print(e)
+    return atoms
 
 
 if __name__=="__main__":
     #Create Dask local cluster
-    cluster=create_cluster(scale=2)
+    cluster=create_cluster(scale=1)
     client=Client(cluster)
     
+    # Get atoms
+    atoms=read("CR100_10.xyz")
 
+    #PBE
     calc=CP2K(input_file="int_0_PBE.inp")
     calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Scale_c=1 # Adding explicit default value, this is because pycp2k ignores empty sections, but CP2K wants them sometimes
-    calc.mpi_n_processes=4
+    calc.mpi_n_processes=12
 
-    atoms=read("CR100_10.xyz")
     new_calcs=[]
-    for i in range(5):
+    for i in range(1):
         new_calc=deepcopy(calc)
         new_calc.project_name=f"{calc.project_name}_{i}"
         new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
@@ -34,11 +41,48 @@ if __name__=="__main__":
         new_calcs.append(new_calc)
     
     futures=client.map(run_cp2k,new_calcs)
+    wait(futures)
+
+    pbe_atoms=[]
     for fut in as_completed(futures):
-        try:
-         print(f"{fut.status}: {fut.result.project_name}")
-        except AttributeError:
-         print(fut.status)
+        if fut.status=="finished":
+           try:
+              pbe_atoms.append(fut.result())
+           except:
+              print(fut.result)
+        else:
+            print(fut.result)
+
+    # PBE0
+    calc=CP2K(input_file="int_0.inp")
+    calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Scale_c=1 # Adding explicit default value, this is because pycp2k ignores empty sections, but CP2K wants them sometimes
+    calc.mpi_n_processes=12
+    new_calcs=[]
+    for i in range(len(pbe_atoms)):
+        new_calc.project_name=f"{calc.project_name}_{i}"
+        new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
+        new_calc.working_directory=f"{calc.working_directory}/{new_calc.project_name}"
+        new_calc.atoms=pbe_atoms[i]
+        new_calcs.append(new_calc)
+
+    futures=client.map(run_cp2k,new_calcs)
+    wait(futures)
+    pbe0_atoms=[]
+    for fut in as_completed(futures):
+        if fut.status=="finished":
+           try:
+              pbe0_atoms.append(fut.result())
+           except:
+              print(fut.result)
+        else:
+            print(fut.result)
+
+    write("result.xyz",pbe0_atoms,format="extxyz")
+    # Close Dask cluster (I tend to forget)
+    client.close()
+
+    
+    
     
 
     

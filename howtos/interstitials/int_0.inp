@@ -1,19 +1,24 @@
 
 &GLOBAL
     PRINT_LEVEL  MEDIUM
-    PROJECT_NAME PBE 
+    PROJECT_NAME PBE0
     RUN_TYPE GEO_OPT
 &END GLOBAL
+
+&EXT_RESTART
+    RESTART_FILE_NAME int_0-1.restart
+    RESTART_COUNTERS FALSE
+&END
 
 &MOTION
    	&GEO_OPT
       		TYPE MINIMIZATION
       		OPTIMIZER BFGS
-                MAX_ITER 1
+			MAX_ITER 1
    	&END GEO_OPT
 	&CELL_OPT
-                MAX_ITER 1
       		OPTIMIZER BFGS
+			MAX_ITER 1
       		TYPE DIRECT_CELL_OPT
       		KEEP_ANGLES   .TRUE. 
       		KEEP_SYMMETRY .TRUE.          
@@ -28,13 +33,13 @@
       		BASIS_SET_FILE_NAME BASIS_ADMM
       		BASIS_SET_FILE_NAME BASIS_ADMM_MOLOPT
       		POTENTIAL_FILE_NAME POTENTIAL
-      		#WFN_RESTART_FILE_NAME ../q2/tantala-RESTART.wfn
+      		WFN_RESTART_FILE_NAME int_0-RESTART.wfn
                 #CHARGE -2
                 #UKS
 
       		&SCF
-                        IGNORE_CONVERGENCE_FAILURE
-         		MAX_SCF 1 
+			    IGNORE_CONVERGENCE_FAILURE
+         		MAX_SCF 1
          		EPS_SCF 1.0E-6
           		SCF_GUESS RESTART
          		&OT  T
@@ -43,7 +48,7 @@
          		&END OT
          		&OUTER_SCF  T
             			EPS_SCF 1.0E-6 
-            			MAX_SCF 1 
+            			MAX_SCF 1
          		&END
 
       			#&MIXING T
@@ -54,9 +59,16 @@
       			#&END MIXING
       		&END SCF
 
+      		&AUXILIARY_DENSITY_MATRIX_METHOD
+         		ADMM_PURIFICATION_METHOD MO_DIAG
+        		METHOD BASIS_PROJECTION
+      		&END AUXILIARY_DENSITY_MATRIX_METHOD
+
       		&QS
+         		#EPS_PGF_ORB 1.0E-18
+         		#EPS_FILTER_MATRIX 0.0E0
          		METHOD GPW
-                        MIN_PAIR_LIST_RADIUS -1
+                MIN_PAIR_LIST_RADIUS -1
       		&END QS
 
       		&MGRID
@@ -64,11 +76,40 @@
          		REL_CUTOFF  70
       		&END MGRID
 
-		&XC
+		    &XC
       			&XC_FUNCTIONAL
        				&PBE
+         				! 75% GGA exchange
+         				SCALE_X 0.75
+         				! 100% GGA correlation
+         				SCALE_C 1.0
        				&END PBE
+       				&PBE_HOLE_T_C_LR
+         				SCALE_X 0.25
+         				CUTOFF_RADIUS 2.0
+       				&END PBE_HOLE_T_C_LR
       			&END XC_FUNCTIONAL
+
+      			&HF
+        			! 25 % HFX exchange
+        			FRACTION 0.25
+        
+        			&SCREENING        
+          				EPS_SCHWARZ 1.0E-6
+          				SCREEN_ON_INITIAL_P TRUE
+        			&END SCREENING
+
+        			&INTERACTION_POTENTIAL
+          				POTENTIAL_TYPE TRUNCATED
+          				CUTOFF_RADIUS  2.0
+           				T_C_G_DATA t_c_g.dat
+        			&END
+
+        			&MEMORY
+          				MAX_MEMORY 12000
+          				EPS_STORAGE_SCALING 0.1
+        			&END MEMORY
+      			&END HF
     		&END XC
 
       		&POISSON
