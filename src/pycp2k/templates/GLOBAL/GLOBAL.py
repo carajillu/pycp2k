@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import pycp2k
+import time
 from pycp2k import CP2K
 from pycp2k.templates.FORCE_EVAL.SUBSYS.add_atoms import add_coords, add_cell
 from pycp2k.templates.FORCE_EVAL.SUBSYS.add_kinds import add_kinds
@@ -10,6 +11,8 @@ class CP2K(CP2K):
                  working_directory:str=None,cp2k_command:str="cp2k.psmp",mpi_n_procs: int=None):
         super().__init__()
         self._atoms=None
+        self.calc_run_ok=None
+        self.last_exec_time=None
         self.working_directory=working_directory
         self.cp2k_command=cp2k_command
         if input_file is not None:
@@ -70,7 +73,20 @@ class CP2K(CP2K):
            os.makedirs(working_directory,exist_ok=True)
            self._working_directory=os.path.abspath(working_directory)
 
-
+    
+    def run(self,nfail_lines:int=100):
+        start=time.perf_counter()
+        try:
+            super().run()
+            self.calc_run_ok=True
+        except Exception as ex:
+            print(ex)
+            if os.path.isfile(f"{self.working_directory}/{self.project_name}.out"):
+               os.system(f"tail -n {nfail_lines} {self.working_directory}/{self.project_name}.out")
+            self.calc_run_ok=False
+        end=time.perf_counter()
+        self.last_exec_time=end-start
+    
     def cleanup(self,quiet:bool=False):
         
         if not quiet:
