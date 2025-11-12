@@ -34,14 +34,20 @@ def run_cp2k(calc):
     finally:
       return calc
 
-def get_new_calcs(calc:CP2K,atoms_lst:list[Atoms]):
+def get_new_calc(calc:CP2K,atoms:Atoms,project_name:str):
+    new_calc=deepcopy(calc)
+    new_calc.project_name=project_name
+    new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
+    new_calc.working_directory=f"{calc.working_directory}/results/{new_calc.project_name}"
+    new_calc.atoms=atoms
+    return new_calc
+
+
+def get_new_calc_lst(calc:CP2K,atoms_lst:list[Atoms]):
     new_calcs=[]
     for i, atoms in enumerate(atoms_lst):
-        new_calc_i=deepcopy(calc)
-        new_calc_i.project_name=f"{calc.project_name}_{i}"
-        new_calc_i.CP2K_INPUT.GLOBAL.Project_name=new_calc_i.project_name #use a setter for that in the future?
-        new_calc_i.working_directory=f"{calc.working_directory}/{new_calc_i.project_name}"
-        new_calc_i.atoms=atoms
+        project_name=f"{calc.project_name}_{i}"
+        new_calc_i=get_new_calc(calc=calc,atoms=atoms,project_name=project_name)
         new_calcs.append(new_calc_i)
     return new_calcs
 
@@ -68,51 +74,48 @@ if __name__=="__main__":
     new_atoms=[]
     for i in range(args.nreps):
         new_atoms.append(remove_random_atom(atoms,element="O"))
-    new_calcs=get_new_calcs(calc,new_atoms)
+    new_calcs=get_new_calc_lst(calc,new_atoms)
     futures=client.map(run_cp2k,new_calcs)
-    
-    wait(futures)
+
+    #PBE0 as PBE calculations end
+    calc_pbe0=CP2K(input_file="int_0.inp")
+    for fut in as_completed(futures):
+        calc_pbe=fut.result()
+        if calc_pbe.calc_run_ok:
+            atoms=calc_pbe.atoms
+            pbe_idx=calc_pbe.project_name.split("_")[-1]
+            calc_pbe0_i=get_new_calc(calc=calc_pbe0,atoms=atoms,project_name=f"{calc_pbe0.project_name}_{pbe_idx}")
+            pbe0_future=client.submit(run_cp2k,calc_pbe0_i)
+            futures.append(pbe0_future)
+
+
+    # Performance analysis
+    calc_names=[]
     run_ok_status=[]
     nodes=[]
     mpi_ranks=[]
     omp_threads=[]
     time_exec=[]
-    for fut in futures:
+    for fut in as_completed(futures):
         calc=fut.result()
+        calc_names.append(calc.project_name)
         run_ok_status.append(calc.calc_run_ok)
         mpi_ranks.append(calc.mpi_n_processes)
         omp_threads.append(args.cp2k_omp_threads)
         time_exec.append(calc.last_exec_time)
-    
-    z=pd.DataFrame({"run_ok": run_ok_status, "mpi_processes": mpi_ranks, "omp_threads": omp_threads,"last_exec_time":time_exec})
-    print(z)
-    client.close()
-    sys.exit()
 
-    # PBE0
-    calc=CP2K(input_file="int_0.inp")
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Scale_c=1 # Adding explicit default value, this is because pycp2k ignores empty sections, but CP2K wants them sometimes
-    calc.mpi_n_processes=12
-    new_calcs=[]
-    for i in range(len(pbe_atoms)):
-        new_calc.project_name=f"{calc.project_name}_{i}"
-        new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
-        new_calc.working_directory=f"{calc.working_directory}/{new_calc.project_name}"
-        new_calc.atoms=pbe_atoms[i]
-        new_calcs.append(new_calc)
-
-    futures=client.map(run_cp2k,new_calcs)
+    #wait for all futures, then print performance analysis
     wait(futures)
-    pbe0_atoms=[]
-    for fut in as_completed(futures):
-        if fut.status=="finished":
-           try:
-              pbe0_atoms.append(fut.result())
-           except:
-              print(fut.result)
-        else:
-            print(fut.result)
+    z=pd.DataFrame({"name":calc_names,"run_ok": run_ok_status,"mpi_processes": mpi_ranks, "omp_threads": omp_threads,"last_exec_time":time_exec})
+    z.to_csv("timings.csv")
 
+    #write atoms to results file
+    pbe0_atoms=[]
+    for fut in futures:
+        calc=fut.result()
+        if "PBE0" in calc.project_name and calc.calc_run_ok:
+            print(calc.project_name, calc.CP2K_INPUT.GLOBAL.Project_name)
+            pbe0_atoms.append(calc.atoms)
     write("result.xyz",pbe0_atoms,format="extxyz")
 
     # Close Dask cluster (I tend to forget)
