@@ -80,11 +80,13 @@ if __name__=="__main__":
         atoms_i.info["run_name"]=f"system_{i}"
         new_atoms.append(atoms_i)
     new_calcs=get_new_calc_lst(calc,new_atoms)
-    futures=client.map(run_cp2k,new_calcs)
+    pbe_futures=client.map(run_cp2k,new_calcs)
+    all_futures=set(pbe_futures)
 
     #PBE0 as PBE calculations end
+    pbe0_futures=[]
     calc_pbe0=CP2K(input_file="int_0.inp")
-    for fut in as_completed(futures):
+    for fut in as_completed(pbe_futures):
         calc_pbe=fut.result()
         if calc_pbe.calc_run_ok:
             atoms=calc_pbe.atoms
@@ -92,7 +94,7 @@ if __name__=="__main__":
             calc_pbe0_i=get_new_calc(calc=calc_pbe0,atoms=atoms,project_name=f"{calc_pbe0.project_name}_{pbe_idx}")
             calc_pbe0_i.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=f"../{calc_pbe.project_name}/{calc_pbe.project_name}-RESTART.wfn"
             pbe0_future=client.submit(run_cp2k,calc_pbe0_i)
-            futures.append(pbe0_future)
+            all_futures.add(pbe0_future)
 
 
     # Performance analysis
@@ -102,7 +104,7 @@ if __name__=="__main__":
     mpi_ranks=[]
     omp_threads=[]
     time_exec=[]
-    for fut in as_completed(futures):
+    for fut in as_completed(all_futures):
         calc=fut.result()
         calc_names.append(calc.project_name)
         run_ok_status.append(calc.calc_run_ok)
@@ -111,13 +113,13 @@ if __name__=="__main__":
         time_exec.append(calc.last_exec_time)
 
     #wait for all futures, then print performance analysis
-    wait(futures)
+    wait(all_futures)
     z=pd.DataFrame({"name":calc_names,"run_ok": run_ok_status,"mpi_processes": mpi_ranks, "omp_threads": omp_threads,"last_exec_time":time_exec})
     z.to_csv("timings.csv",index=False)
 
     #write atoms to results file
     pbe0_atoms=[]
-    for fut in futures:
+    for fut in pbe_futures:
         calc=fut.result()
         if "PBE0" in calc.project_name and calc.calc_run_ok:
             print(calc.project_name, calc.CP2K_INPUT.GLOBAL.Project_name)
