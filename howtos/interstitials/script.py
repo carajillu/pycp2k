@@ -26,9 +26,12 @@ def parse():
 
 def run_cp2k(calc):
     try:
+      write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
       calc.run()
       crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
-      calc.atoms=read(crdfilename,":")[-1]
+      new_atoms=read(crdfilename,":")[-1]
+      new_atoms.info["run_name"]=calc.atoms.info["run_name"]
+      calc.atoms=new_atoms
     except:
       pass
     finally:
@@ -38,8 +41,8 @@ def get_new_calc(calc:CP2K,atoms:Atoms,project_name:str):
     new_calc=deepcopy(calc)
     new_calc.project_name=project_name
     new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
-    new_calc.working_directory=f"{calc.working_directory}/results/{new_calc.project_name}"
     new_calc.atoms=atoms
+    new_calc.working_directory=f"{new_calc.working_directory}/results/{new_calc.atoms.info["run_name"]}/{new_calc.project_name}"
     return new_calc
 
 
@@ -73,7 +76,9 @@ if __name__=="__main__":
 
     new_atoms=[]
     for i in range(args.nreps):
-        new_atoms.append(remove_random_atom(atoms,element="O"))
+        atoms_i=remove_random_atom(atoms,element="O")
+        atoms_i.info["run_name"]=f"system_{i}"
+        new_atoms.append(atoms_i)
     new_calcs=get_new_calc_lst(calc,new_atoms)
     futures=client.map(run_cp2k,new_calcs)
 
@@ -85,6 +90,7 @@ if __name__=="__main__":
             atoms=calc_pbe.atoms
             pbe_idx=calc_pbe.project_name.split("_")[-1]
             calc_pbe0_i=get_new_calc(calc=calc_pbe0,atoms=atoms,project_name=f"{calc_pbe0.project_name}_{pbe_idx}")
+            calc_pbe0_i.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=f"../{calc_pbe.project_name}/{calc_pbe.project_name}-RESTART.wfn"
             pbe0_future=client.submit(run_cp2k,calc_pbe0_i)
             futures.append(pbe0_future)
 
@@ -107,7 +113,7 @@ if __name__=="__main__":
     #wait for all futures, then print performance analysis
     wait(futures)
     z=pd.DataFrame({"name":calc_names,"run_ok": run_ok_status,"mpi_processes": mpi_ranks, "omp_threads": omp_threads,"last_exec_time":time_exec})
-    z.to_csv("timings.csv")
+    z.to_csv("timings.csv",index=False)
 
     #write atoms to results file
     pbe0_atoms=[]
@@ -116,7 +122,8 @@ if __name__=="__main__":
         if "PBE0" in calc.project_name and calc.calc_run_ok:
             print(calc.project_name, calc.CP2K_INPUT.GLOBAL.Project_name)
             pbe0_atoms.append(calc.atoms)
-    write("result.xyz",pbe0_atoms,format="extxyz")
+    if len(pbe0_atoms)>0:
+       write("result.xyz",pbe0_atoms,format="extxyz")
 
     # Close Dask cluster (I tend to forget)
     client.close()
