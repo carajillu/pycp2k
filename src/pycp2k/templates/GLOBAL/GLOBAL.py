@@ -74,10 +74,10 @@ class CP2K(CP2K):
            self._working_directory=os.path.abspath(working_directory)
 
     
-    def run(self,nfail_lines:int=100):
+    def run(self,nfail_lines:int=100,**kwargs):
         start=time.perf_counter()
         try:
-            super().run()
+            super().run(**kwargs)
             self.calc_run_ok=True
         except Exception as ex:
             print(ex)

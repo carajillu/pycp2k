@@ -5,6 +5,7 @@ from pycp2k.utilities import print_title, print_text, print_warning, print_error
 from pycp2k.inputparser import CP2KInputParser
 import pycp2k.config
 from subprocess import call, check_output, CalledProcessError
+import subprocess
 import re
 import os
 import time
@@ -257,7 +258,7 @@ class CP2K(object):
         input_string = self.CP2K_INPUT._print_input(-1)
         return input_string
 
-    def run(self, print_input=False):
+    def run(self, print_input=False,**kwargs):
         """Runs the input script."""
 
         print_title("PYCP2K RUN STARTED")
@@ -337,7 +338,13 @@ class CP2K(object):
             print_text("   -Processes: {}".format(self.mpi_n_processes))
         start = time.time()
         try:
-            check_output(command_string, shell=True, cwd=working_directory)
+            background=kwargs.get("background",False)
+            if background:
+                print_text("WARNING: with background=True, this calculation will be sent to the background and python script will keep going. " \
+                           "Execution times will be meaningless in this scenario")
+                subprocess.Popen(command_string,shell=True,cwd=working_directory)
+            else:
+                check_output(command_string, shell=True, cwd=working_directory)
         except CalledProcessError:
             error_output_path = self.output_path
             print_error("Error occured during CP2K calculation. See the output from {} for further details.".format(error_output_path))
