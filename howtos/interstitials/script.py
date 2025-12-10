@@ -1,14 +1,16 @@
-import os, sys, argparse
-from ase import Atoms
-from ase.io import read, write
-from pycp2k.templates.GLOBAL.GLOBAL import CP2K
-from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
-from dask.distributed import Client, wait, as_completed
-from pycp2k.dask_utils.local import create_cluster
-from pycp2k.ase_utils.interstitials import remove_random_atom
-from copy import deepcopy
-from dask.distributed import wait
-import pandas as pd
+import functools
+print = functools.partial(print, flush=True) # all print()s will be called with "flush=True"
+print("import os, sys, argparse"); import os, sys, argparse
+print("from ase import Atoms"); from ase import Atoms
+print("from ase.io import read, write");from ase.io import read, write
+print("from pycp2k.templates.GLOBAL.GLOBAL import CP2K");from pycp2k.templates.GLOBAL.GLOBAL import CP2K
+print("from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT");from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
+print("from pycp2k.ase_utils.interstitials import remove_random_atom"); from pycp2k.ase_utils.interstitials import remove_random_atom
+print("from copy import copy, deepcopy"); from copy import copy, deepcopy
+print("import pandas as pd"); import pandas as pd
+print("import time"); import time
+print("from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait"); from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+print("import subprocess"); import subprocess
 
 def parse():
     """Parse command line arguments."""
@@ -25,20 +27,18 @@ def parse():
     return parser.parse_args()
 
 def run_cp2k(calc):
-    try:
-      write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
-      calc.run()
-      crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
-      new_atoms=read(crdfilename,":")[-1]
-      new_atoms.info["run_name"]=calc.atoms.info["run_name"]
-      calc.atoms=new_atoms
-    except:
-      pass
-    finally:
-      return calc
+    start=time.time()
+    write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
+    calc.run()
+    crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
+    new_atoms=read(crdfilename,":")[-1]
+    new_atoms.info["run_name"]=calc.atoms.info["run_name"]
+    calc.atoms=new_atoms
+    end=time.time
+    return calc, end-start
 
 def get_new_calc(calc:CP2K,atoms:Atoms,project_name:str):
-    new_calc=deepcopy(calc)
+    new_calc=copy(calc) #not deepcopy cause we need a shared list of nodes
     new_calc.project_name=project_name
     new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
     new_calc.atoms=atoms
@@ -56,76 +56,50 @@ def get_new_calc_lst(calc:CP2K,atoms_lst:list[Atoms]):
 
 
 if __name__=="__main__":
-    #parse arguments
+    print("Program started")
+
+    # Parse arguments
     args=parse()
 
-    #Create Dask local cluster
-    cluster=create_cluster(scale=args.dask_scale)
-    client=Client(cluster)
-    
     # Get atoms
     atoms=read(args.input_structure)
 
-    #PBE
-    os.environ["OMP_NUM_THREADS"]=str(args.cp2k_omp_threads)
+    # Construct the base PBE calculator
     calc=CP2K(input_file="int_0_PBE.inp",mpi_n_procs=args.cp2k_mpi_processes)
     calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Scale_c=1 # Adding explicit default value, this is because pycp2k ignores empty sections, but CP2K wants them sometimes
     if args.cp2k_nodes is not None:
        calc.mpi_flags.append(f"--nodes={args.cp2k_nodes}")
        calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
-
+       calc.mpi_flags.append(f"--exclusive")
+    
+    # Construct the set of Atoms objects with random oxygen atoms removed
     new_atoms=[]
     for i in range(args.nreps):
         atoms_i=remove_random_atom(atoms,element="O")
         atoms_i.info["run_name"]=f"system_{i}"
         new_atoms.append(atoms_i)
     new_calcs=get_new_calc_lst(calc,new_atoms)
-    pbe_futures=client.map(run_cp2k,new_calcs)
-    all_futures=set(pbe_futures)
 
-    #PBE0 as PBE calculations end
-    pbe0_futures=[]
-    calc_pbe0=CP2K(input_file="int_0.inp")
-    for fut in as_completed(pbe_futures):
-        calc_pbe=fut.result()
-        if calc_pbe.calc_run_ok:
-            atoms=calc_pbe.atoms
-            pbe_idx=calc_pbe.project_name.split("_")[-1]
-            calc_pbe0_i=get_new_calc(calc=calc_pbe0,atoms=atoms,project_name=f"{calc_pbe0.project_name}_{pbe_idx}")
-            calc_pbe0_i.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=f"../{calc_pbe.project_name}/{calc_pbe.project_name}-RESTART.wfn"
-            pbe0_future=client.submit(run_cp2k,calc_pbe0_i)
-            all_futures.add(pbe0_future)
+    # Submit jobs in parallel (?)
+    not_done=set()
+    with ThreadPoolExecutor(max_workers=args.dask_scale) as exe:
+        for calc in new_calcs:
+            job=exe.submit(run_cp2k,calc)
+            not_done.add(job)
 
+    # Wait for job(s) to complete and generate any new jobs
+    while len(not_done) > 0:
+        done, not_done = wait(not_done, return_when=FIRST_COMPLETED)
+        print(f"{len(done)} task(s) completed")
 
-    # Performance analysis
-    calc_names=[]
-    run_ok_status=[]
-    nodes=[]
-    mpi_ranks=[]
-    omp_threads=[]
-    time_exec=[]
-    for fut in as_completed(all_futures):
-        calc=fut.result()
-        calc_names.append(calc.project_name)
-        run_ok_status.append(calc.calc_run_ok)
-        mpi_ranks.append(calc.mpi_n_processes)
-        omp_threads.append(args.cp2k_omp_threads)
-        time_exec.append(calc.last_exec_time)
+        for job in done:
+            run_id, runtime = job.result()
+            print(f"Job {run_id} complete in {runtime} seconds")
 
-    #wait for all futures, then print performance analysis
-    wait(all_futures)
-    z=pd.DataFrame({"name":calc_names,"run_ok": run_ok_status,"mpi_processes": mpi_ranks, "omp_threads": omp_threads,"last_exec_time":time_exec})
-    z.to_csv("timings.csv",index=False)
+            # Check runtime - if many jobs are failing fast, then should quit the whole job.
+            # Lots of quickly generated job steps can overload SLURM (affecting other users), so
+            # we want to avoid that.
 
-    #write atoms to results file
-    pbe0_atoms=[]
-    for fut in pbe_futures:
-        calc=fut.result()
-        if "PBE0" in calc.project_name and calc.calc_run_ok:
-            print(calc.project_name, calc.CP2K_INPUT.GLOBAL.Project_name)
-            pbe0_atoms.append(calc.atoms)
-    if len(pbe0_atoms)>0:
-       write("result.xyz",pbe0_atoms,format="extxyz")
+            # Process results and/or submit new job(s)
 
-    # Close Dask cluster (I tend to forget)
-    client.close()
+        done = []
