@@ -31,11 +31,11 @@ def run_cp2k(calc):
     start=time.time()
     write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
     calc.write_input_file()
-    #calc.run()
-    #crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
-    #new_atoms=read(crdfilename,":")[-1]
-    #new_atoms.info["run_name"]=calc.atoms.info["run_name"]
-    #calc.atoms=new_atoms
+    calc.run()
+    crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
+    new_atoms=read(crdfilename,":")[-1]
+    new_atoms.info["run_name"]=calc.atoms.info["run_name"]
+    calc.atoms=new_atoms
     calc.wfn_restart=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-RESTART.wfn"
     end=time.time()
     return calc, end-start
@@ -71,6 +71,10 @@ if __name__=="__main__":
        calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
        calc.mpi_flags.append(f"--exclusive")
     
+    # Create DataFrame to track results
+    #calc_pd=pd.DataFrame({"Replicate":["rep_{j}" for j in range(args.nreps)]})
+    #calc_pd = calc_pd.assign(**{col: None for col in args.cp2k_input})
+
     # Build matrix of calculators
     calculation_matrix=[]
     for j in range(args.nreps):
