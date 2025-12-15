@@ -72,8 +72,9 @@ if __name__=="__main__":
        calc.mpi_flags.append(f"--exclusive")
     
     # Create DataFrame to track results
-    #calc_pd=pd.DataFrame({"Replicate":["rep_{j}" for j in range(args.nreps)]})
-    #calc_pd = calc_pd.assign(**{col: None for col in args.cp2k_input})
+    calc_pd=pd.DataFrame({"Replicate":[f"rep_{j}" for j in range(args.nreps)]})
+    for input_file in args.cp2k_input:
+        calc_pd[input_file]=[None]*args.nreps
 
     # Build matrix of calculators
     calculation_matrix=[]
@@ -103,11 +104,13 @@ if __name__=="__main__":
 
             for job in done:
                 completed_calculator, runtime = job.result()
+                completed_run_id=completed_calculator.run_id # index i
+                completed_rep_id=completed_calculator.rep_id # index j
+                calc_pd.loc[completed_rep_id,args.cp2k_input[completed_run_id]]=runtime # correct syntax in pd 3.0
                 print(f"Job at location: {completed_calculator.working_directory}: complete in {runtime} seconds")
                 if completed_calculator.run_id<len(args.cp2k_input)-1:
-                   rep_id=completed_calculator.rep_id
-                   next_calc=calculation_matrix[rep_id][completed_calculator.run_id+1] # only referencing, no deepcopy
-                   next_calc.run_id=completed_calculator.run_id+1
+                   next_calc=calculation_matrix[completed_rep_id][completed_run_id+1] # only referencing, no deepcopy
+                   next_calc.run_id=completed_run_id+1
                    next_calc.atoms=completed_calculator.atoms
                    next_calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=completed_calculator.wfn_restart
                    job=exe.submit(run_cp2k,next_calc)
@@ -117,3 +120,5 @@ if __name__=="__main__":
                 # we want to avoid that.
                 # Process results and/or submit new job(s)
             done = []
+
+    calc_pd.to_csv("timings.csv",header=True,index=False)
