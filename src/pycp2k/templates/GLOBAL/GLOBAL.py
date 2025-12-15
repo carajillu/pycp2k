@@ -45,6 +45,8 @@ class CP2K(CP2K):
     @atoms.setter
     def atoms(self,atoms):
         self._atoms=atoms
+        if atoms is None:
+              return
         if len(self.CP2K_INPUT.FORCE_EVAL_list)==0:
            self.CP2K_INPUT.FORCE_EVAL_add()
         elif len(self.CP2K_INPUT.FORCE_EVAL_list)>1:

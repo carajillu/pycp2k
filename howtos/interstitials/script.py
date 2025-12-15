@@ -19,40 +19,39 @@ def parse():
     #parser.add_argument("--water",action="store_true",help="Debugging run with a water molecule")
     parser.add_argument("--nreps",type=int,default=1,help="Number of copies of input_structure to run")
     parser.add_argument("--cp2k_command", type=str, default="cp2k.psmp")
+    parser.add_argument("--cp2k_input", type=str, nargs="+", default=["input.inp"])
     parser.add_argument("--cp2k_mpi_processes",type=int,default=1,help="Number of MPI processes to run CP2K with")
     parser.add_argument("--cp2k_nodes",type=int,default=None,help="Number of nodes to run CP2K on")
     parser.add_argument("--cp2k_omp_threads",type=int,default=1,help="Number of OMP threads for each MPI rank used by CP2K (will be set at system level with os.environ)")
-    parser.add_argument("--dask_scale",type=int,default=1,help="Number of DASK jobs to spawn")
+    parser.add_argument("--scale",type=int,default=1,help="Number of jobs to run at the same time")
     parser.add_argument("--output", type=str, default="ds_ready.xyz", help="Output file for the dataset.")
     return parser.parse_args()
 
 def run_cp2k(calc):
     start=time.time()
     write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
-    calc.run()
-    crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
-    new_atoms=read(crdfilename,":")[-1]
-    new_atoms.info["run_name"]=calc.atoms.info["run_name"]
-    calc.atoms=new_atoms
+    calc.write_input_file()
+    #calc.run()
+    #crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
+    #new_atoms=read(crdfilename,":")[-1]
+    #new_atoms.info["run_name"]=calc.atoms.info["run_name"]
+    #calc.atoms=new_atoms
+    calc.wfn_restart=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-RESTART.wfn"
     end=time.time()
     return calc, end-start
 
-def get_new_calc(calc:CP2K,atoms:Atoms,project_name:str):
-    new_calc=copy(calc) #not deepcopy cause we need a shared list of nodes
-    new_calc.project_name=project_name
-    new_calc.CP2K_INPUT.GLOBAL.Project_name=new_calc.project_name #use a setter for that in the future?
-    new_calc.atoms=atoms
-    new_calc.working_directory=f"{new_calc.working_directory}/results/{new_calc.atoms.info["run_name"]}/{new_calc.project_name}"
-    return new_calc
-
-
-def get_new_calc_lst(calc:CP2K,atoms_lst:list[Atoms]):
-    new_calcs=[]
-    for i, atoms in enumerate(atoms_lst):
-        project_name=f"{calc.project_name}_{i}"
-        new_calc_i=get_new_calc(calc=calc,atoms=atoms,project_name=project_name)
-        new_calcs.append(new_calc_i)
-    return new_calcs
+def build_cp2k_calc(calc:CP2K, input_file:str, rep_id:int, run_id:int=0) -> CP2K:
+    calc_i=deepcopy(calc)
+    calc_i.rep_id=rep_id
+    calc_i.run_id=run_id
+    calc_i.parse(input_file)
+    calc_i.project_name=calc_i.CP2K_INPUT.GLOBAL.Project_name
+    calc_i.working_directory=f"run_{rep_id}/{calc_i.CP2K_INPUT.GLOBAL.Project_name}"
+    try:
+        calc_i.write_input_file()
+    except Exception as e:
+        print(f"Error writing input file: {e}")
+    return calc_i
 
 
 if __name__=="__main__":
@@ -60,46 +59,57 @@ if __name__=="__main__":
 
     # Parse arguments
     args=parse()
-
+    print(args)
+     
     # Get atoms
     atoms=read(args.input_structure)
 
-    # Construct the base PBE calculator
-    calc=CP2K(input_file="int_0_PBE.inp",mpi_n_procs=args.cp2k_mpi_processes)
-    calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.XC.XC_FUNCTIONAL.PBE.Scale_c=1 # Adding explicit default value, this is because pycp2k ignores empty sections, but CP2K wants them sometimes
+    # Construct the base CP2K calculator
+    calc=CP2K(cp2k_command=args.cp2k_command,mpi_n_procs=args.cp2k_mpi_processes)
     if args.cp2k_nodes is not None:
        calc.mpi_flags.append(f"--nodes={args.cp2k_nodes}")
        calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
        calc.mpi_flags.append(f"--exclusive")
     
-    # Construct the set of Atoms objects with random oxygen atoms removed
-    new_atoms=[]
-    for i in range(args.nreps):
-        atoms_i=remove_random_atom(atoms,element="O")
-        atoms_i.info["run_name"]=f"system_{i}"
-        new_atoms.append(atoms_i)
-    new_calcs=get_new_calc_lst(calc,new_atoms)
+    # Build matrix of calculators
+    calculation_matrix=[]
+    for j in range(args.nreps):
+        calc_j_lst=[]
+        for i in range(len(args.cp2k_input)):
+            calc_i=build_cp2k_calc(calc=calc,input_file=args.cp2k_input[i],rep_id=j)
+            if i==0:
+              atoms_i=remove_random_atom(atoms=atoms,element="O")
+              calc_i.atoms=atoms_i
+            calc_j_lst.append(calc_i)
+        calculation_matrix.append(calc_j_lst)
+            
 
-    # Submit jobs in parallel (?)
+    
+    # Submit calculator i=0 for each j
     not_done=set()
-    with ThreadPoolExecutor(max_workers=args.dask_scale) as exe:
-        for calc in new_calcs:
-            job=exe.submit(run_cp2k,calc)
+    with ThreadPoolExecutor(max_workers=args.scale) as exe:
+        for j in range(args.nreps):
+            job=exe.submit(run_cp2k,calculation_matrix[j][0])
             not_done.add(job)
 
-    # Wait for job(s) to complete and generate any new jobs
-    while len(not_done) > 0:
-        done, not_done = wait(not_done, return_when=FIRST_COMPLETED)
-        print(f"{len(done)} task(s) completed")
+        # Wait for job(s) to complete and generate any new jobs
+        while len(not_done) > 0:
+            done, not_done = wait(not_done, return_when=FIRST_COMPLETED)
+            print(f"{len(done)} task(s) completed")
 
-        for job in done:
-            run_id, runtime = job.result()
-            print(f"Job {run_id} complete in {runtime} seconds")
-
-            # Check runtime - if many jobs are failing fast, then should quit the whole job.
-            # Lots of quickly generated job steps can overload SLURM (affecting other users), so
-            # we want to avoid that.
-
-            # Process results and/or submit new job(s)
-
-        done = []
+            for job in done:
+                completed_calculator, runtime = job.result()
+                print(f"Job at location: {completed_calculator.working_directory}: complete in {runtime} seconds")
+                if completed_calculator.run_id<len(args.cp2k_input)-1:
+                   rep_id=completed_calculator.rep_id
+                   next_calc=calculation_matrix[rep_id][completed_calculator.run_id+1] # only referencing, no deepcopy
+                   next_calc.run_id=completed_calculator.run_id+1
+                   next_calc.atoms=completed_calculator.atoms
+                   next_calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=completed_calculator.wfn_restart
+                   job=exe.submit(run_cp2k,next_calc)
+                   not_done.add(job)
+                # Check runtime - if many jobs are failing fast, then should quit the whole job.
+                # Lots of quickly generated job steps can overload SLURM (affecting other users), so
+                # we want to avoid that.
+                # Process results and/or submit new job(s)
+            done = []
