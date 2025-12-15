@@ -34,7 +34,7 @@ def run_cp2k(calc):
     new_atoms=read(crdfilename,":")[-1]
     new_atoms.info["run_name"]=calc.atoms.info["run_name"]
     calc.atoms=new_atoms
-    end=time.time
+    end=time.time()
     return calc, end-start
 
 def get_new_calc(calc:CP2K,atoms:Atoms,project_name:str):
