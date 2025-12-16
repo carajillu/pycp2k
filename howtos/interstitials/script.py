@@ -1,13 +1,13 @@
 import functools
 print = functools.partial(print, flush=True) # all print()s will be called with "flush=True"
-print("import os, sys, argparse"); import os, sys, argparse
+print("import os, sys, argparse, glob"); import os, sys, argparse, glob
 print("from ase import Atoms"); from ase import Atoms
 print("from ase.io import read, write");from ase.io import read, write
 print("from pycp2k.templates.GLOBAL.GLOBAL import CP2K");from pycp2k.templates.GLOBAL.GLOBAL import CP2K
 print("from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT");from pycp2k.templates.FORCE_EVAL.PBE_templates import add_PBE_OT
 print("from pycp2k.ase_utils.interstitials import remove_random_atom"); from pycp2k.ase_utils.interstitials import remove_random_atom
 print("from copy import copy, deepcopy"); from copy import copy, deepcopy
-print("import pandas as pd"); import pandas as pd
+print("import pandas as pd, numpy as np"); import pandas as pd, numpy as np
 print("import time"); import time
 print("from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait"); from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 print("import subprocess"); import subprocess
@@ -29,16 +29,33 @@ def parse():
 
 def run_cp2k(calc):
     start=time.time()
-    write(f"{calc.working_directory}/initial_structure.xyz",calc.atoms)
-    calc.write_input_file()
-    calc.run()
     crdfilename=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-pos-1.xyz"
-    new_atoms=read(crdfilename,":")[-1]
-    new_atoms.info["run_name"]=calc.atoms.info["run_name"]
-    calc.atoms=new_atoms
-    calc.wfn_restart=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-RESTART.wfn"
-    end=time.time()
-    return calc, end-start
+    wfn_restart=f"{calc.working_directory}/{calc.CP2K_INPUT.GLOBAL.Project_name}-RESTART.wfn"
+    # uncomment for testing
+    #calc.wfn_restart=wfn_restart
+    #end=time.time()
+    #return calc, end-start
+    # end uncomment for testing
+    try:
+       new_atoms=read(crdfilename,":")[-1]    
+       calc.atoms=new_atoms
+       if os.path.isfile(wfn_restart):
+          calc.wfn_restart=wfn_restart
+       return calc, np.nan
+    except Exception:
+        try:
+           if os.path.isfile(wfn_restart):
+              calc.CP2K_INPUT.FORCE_EVAL_list[0].DFT.Wfn_restart_file_name=wfn_restart
+           calc.run()
+           new_atoms=read(crdfilename,":")[-1]    
+           calc.atoms=new_atoms
+           calc.wfn_restart=wfn_restart
+           end=time.time()
+           return calc, end-start
+        except Exception as e:
+           print(f"Calculation {calc.run_id} of replicate {calc.rep_id} failed. See error message.")
+           print(e)
+           return calc, -1.0
 
 def build_cp2k_calc(calc:CP2K, input_file:str, rep_id:int, run_id:int=0) -> CP2K:
     calc_i=deepcopy(calc)
@@ -81,7 +98,7 @@ if __name__=="__main__":
     for j in range(args.nreps):
         calc_j_lst=[]
         for i in range(len(args.cp2k_input)):
-            calc_i=build_cp2k_calc(calc=calc,input_file=args.cp2k_input[i],rep_id=j)
+            calc_i=build_cp2k_calc(calc=calc,input_file=args.cp2k_input[i],rep_id=j,run_id=i)
             if i==0:
               atoms_i=remove_random_atom(atoms=atoms,element="O")
               calc_i.atoms=atoms_i
