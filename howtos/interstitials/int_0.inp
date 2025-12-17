@@ -1,3 +1,8 @@
+# SRUN PARAMETERS
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=128
+#SBATCH --cpus-per-task=1
+#SBATCH --exclusive
 
 &GLOBAL
     PRINT_LEVEL  MEDIUM

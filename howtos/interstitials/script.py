@@ -34,6 +34,7 @@ def run_cp2k(calc):
     # uncomment for testing
     #calc.wfn_restart=wfn_restart
     #end=time.time()
+    #print(calc.project_name,calc.mpi_flags)
     #return calc, end-start
     # end uncomment for testing
     try:
@@ -62,6 +63,10 @@ def build_cp2k_calc(calc:CP2K, input_file:str, rep_id:int, run_id:int=0) -> CP2K
     calc_i.rep_id=rep_id
     calc_i.run_id=run_id
     calc_i.parse(input_file)
+    with open(input_file,"r") as f:
+        for line in f:
+            if line.startswith("#SBATCH"):
+                calc_i.mpi_flags.append(line.split()[1])
     calc_i.project_name=calc_i.CP2K_INPUT.GLOBAL.Project_name
     calc_i.working_directory=f"run_{rep_id}/{calc_i.CP2K_INPUT.GLOBAL.Project_name}"
     try:
@@ -83,10 +88,10 @@ if __name__=="__main__":
 
     # Construct the base CP2K calculator
     calc=CP2K(cp2k_command=args.cp2k_command,mpi_n_procs=args.cp2k_mpi_processes)
-    if args.cp2k_nodes is not None:
-       calc.mpi_flags.append(f"--nodes={args.cp2k_nodes}")
-       calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
-       calc.mpi_flags.append(f"--exclusive")
+    #if args.cp2k_nodes is not None:
+    #   calc.mpi_flags.append(f"--nodes={args.cp2k_nodes}")
+    #   calc.mpi_flags.append(f"--ntasks-per-node={int(args.cp2k_mpi_processes/args.cp2k_nodes)}")
+    #   calc.mpi_flags.append(f"--exclusive")
     
     # Create DataFrame to track results
     calc_pd=pd.DataFrame({"Replicate":[f"rep_{j}" for j in range(args.nreps)]})
