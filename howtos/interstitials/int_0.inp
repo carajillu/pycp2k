@@ -111,7 +111,7 @@
         			&END
 
         			&MEMORY
-          				MAX_MEMORY 12000
+          				MAX_MEMORY 1500 #MAX_MEMORY 12000
           				EPS_STORAGE_SCALING 0.1
         			&END MEMORY
       			&END HF
