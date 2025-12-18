@@ -26,11 +26,6 @@ class CP2K(CP2K):
         self.version=float(pycp2k.config.build_version)
         self.revision=pycp2k.config.build_revision
         self.working_directory=working_directory
-        if self.mpi_on is True:
-           if mpi_n_procs is None:
-              mpi_n_procs=multiprocessing.cpu_count()
-           self.mpi_n_processes=mpi_n_procs
-           print(f"Number of MPI processes: {self.mpi_n_processes}")
         print(f"CP2K version: {self.version}")
         print(f"CP2K revision: {self.revision}")
         print(f"CP2K_command: {self.cp2k_command}")

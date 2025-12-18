@@ -3,6 +3,7 @@
 #SBATCH --ntasks-per-node=128
 #SBATCH --cpus-per-task=1
 #SBATCH --exclusive
+#EXPORT OMP_NUM_THREADS=1
 
 &GLOBAL
     PRINT_LEVEL  MEDIUM
